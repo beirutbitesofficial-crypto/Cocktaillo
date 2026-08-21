@@ -3,12 +3,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CounterWorkspace, TablesWorkspace } from './components/order-workspace.js';
 import ShiftWorkspace from './components/shift-workspace.js';
+import RecipeManager from './components/recipe-manager.js';
 import { Dashboard, Expenses, Inventory, MenuAdmin, Reports, Settings, Station, Users } from './components/manager-modules.js';
 
 const roleTabs={
   waiter:[['tables','▦','Tables']],
   cashier:[['counter','＋','New Order'],['tables','▦','Tables'],['shift','◷','My Shift']],
-  manager:[['dashboard','⌂','Dashboard'],['counter','＋','New Order'],['tables','▦','Tables'],['shift','◷','Shifts'],['inventory','◫','Inventory'],['expenses','↘','Expenses'],['reports','⌁','Reports'],['users','♙','Users'],['menu','☷','Menu'],['settings','⚙','Settings'],['bar','◉','Bar'],['kitchen','◌','Kitchen']]
+  manager:[['dashboard','⌂','Dashboard'],['counter','＋','New Order'],['tables','▦','Tables'],['shift','◷','Shifts'],['inventory','◫','Inventory'],['recipes','≋','Recipes'],['expenses','↘','Expenses'],['reports','⌁','Reports'],['users','♙','Users'],['menu','☷','Menu'],['settings','⚙','Settings'],['bar','◉','Bar'],['kitchen','◌','Kitchen']]
 };
 export default function Workspace({initialUser}){
  const router=useRouter();
@@ -28,6 +29,7 @@ function ActiveModule({tab,data,reload}){
  if(tab==='shift')return <ShiftWorkspace data={data} reload={reload}/>;
  if(tab==='dashboard')return <Dashboard data={data}/>;
  if(tab==='inventory')return <Inventory data={data} reload={reload}/>;
+ if(tab==='recipes')return <RecipeManager data={data} reload={reload}/>;
  if(tab==='expenses')return <Expenses data={data} reload={reload}/>;
  if(tab==='reports')return <Reports data={data}/>;
  if(tab==='users')return <Users data={data} reload={reload}/>;
