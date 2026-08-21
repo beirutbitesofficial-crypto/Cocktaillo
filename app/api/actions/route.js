@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getUser, allow } from '../../../lib/auth.js';
-import { mutateState, orderTotal, publicUser } from '../../../lib/store.js';
+import { deductRecipes, mutateState, orderTotal, publicUser } from '../../../lib/store.js';
 
 export async function POST(request){
  const user=await getUser();if(!user)return NextResponse.json({error:'Unauthorized'},{status:401});
@@ -11,13 +11,24 @@ export async function POST(request){
   if(b.action==='open_shift'){
    if(!allow(user,'cashier','manager'))throw new Error('Not allowed.');
    if(s.shifts.some(x=>x.user_id===user.id&&x.status==='open'))throw new Error('Shift already open.');
-   const shift={id:`shift-${crypto.randomUUID()}`,user_id:user.id,user_name:user.name,status:'open',opened_at:now,opening_usd:Number(b.opening_usd||0),closed_at:null,closing_usd:null};s.shifts.push(shift);return {shift};
+   const shift={id:`shift-${crypto.randomUUID()}`,user_id:user.id,user_name:user.name,status:'open',opened_at:now,opening_usd:Number(b.opening_usd||0),closed_at:null,closing_usd:null,expected_usd:null,variance_usd:null};s.shifts.push(shift);return {shift};
   }
   if(b.action==='close_shift'){
-   if(!allow(user,'cashier','manager'))throw new Error('Not allowed.');const shift=s.shifts.find(x=>x.user_id===user.id&&x.status==='open');if(!shift)throw new Error('No open shift.');shift.status='closed';shift.closed_at=now;shift.closing_usd=Number(b.closing_usd||0);return {shift};
+   if(!allow(user,'cashier','manager'))throw new Error('Not allowed.');const shift=s.shifts.find(x=>x.user_id===user.id&&x.status==='open');if(!shift)throw new Error('No open shift.');
+   const receipts=s.receipts.filter(r=>r.cashier===user.name&&r.created_at>=shift.opened_at);
+   const cashUsd=receipts.reduce((sum,r)=>sum+Number(r.payment?.usd_cents||0)/100,0);
+   const drawerExpenses=s.expenses.filter(e=>e.paid_from==='cash_drawer'&&e.currency==='USD'&&e.created_at>=shift.opened_at).reduce((sum,e)=>sum+Number(e.amount||0),0);
+   const expected=Number(shift.opening_usd||0)+cashUsd-drawerExpenses;
+   shift.status='closed';shift.closed_at=now;shift.closing_usd=Number(b.closing_usd||0);shift.expected_usd=expected;shift.variance_usd=shift.closing_usd-expected;return {shift};
   }
   if(b.action==='pay_order'){
-   if(!allow(user,'cashier','manager'))throw new Error('Cashier access required.');const order=s.orders.find(x=>x.id===b.order_id&&x.status!=='paid');if(!order)throw new Error('Order not found.');const totals=orderTotal(order,s.settings.exchange_rate);const usdCents=Math.round(Number(b.usd||0)*100),lbp=Math.round(Number(b.lbp||0));const paidEquivalent=usdCents+Math.round((lbp/s.settings.exchange_rate)*100);if(paidEquivalent<totals.total_equivalent_cents)throw new Error('Payment is less than total.');order.payments=[{usd_cents:usdCents,lbp,rate:s.settings.exchange_rate,cashier:user.name,at:now}];order.status='paid';order.paid_at=now;const receipt={id:`rcpt-${crypto.randomUUID()}`,number:order.number,order_id:order.id,type:order.type,table_id:order.table_id,items:order.lines,totals,payment:order.payments[0],change_cents:paidEquivalent-totals.total_equivalent_cents,cashier:user.name,created_at:now};return {receipt};
+   if(!allow(user,'cashier','manager'))throw new Error('Cashier access required.');
+   if(user.role==='cashier'&&!s.shifts.some(x=>x.user_id===user.id&&x.status==='open'))throw new Error('Open your shift before collecting payment.');
+   const order=s.orders.find(x=>x.id===b.order_id&&x.status!=='paid');if(!order)throw new Error('Order not found.');
+   const totals=orderTotal(order,s.settings.exchange_rate);const usdCents=Math.round(Number(b.usd||0)*100),lbp=Math.round(Number(b.lbp||0));const paidEquivalent=usdCents+Math.round((lbp/s.settings.exchange_rate)*100);if(paidEquivalent<totals.total_equivalent_cents)throw new Error('Payment is less than total.');
+   order.payments=[{usd_cents:usdCents,lbp,rate:s.settings.exchange_rate,cashier:user.name,at:now}];order.status='paid';order.paid_at=now;
+   deductRecipes(s,order);
+   const receipt={id:`rcpt-${crypto.randomUUID()}`,number:order.number,order_id:order.id,type:order.type,table_id:order.table_id,items:order.lines,totals,payment:order.payments[0],change_cents:paidEquivalent-totals.total_equivalent_cents,cashier:user.name,created_at:now};s.receipts.push(receipt);return {receipt};
   }
   if(b.action==='transfer_table'){
    if(!allow(user,'waiter','cashier','manager'))throw new Error('Not allowed.');const order=s.orders.find(x=>x.id===b.order_id&&x.type==='table'&&x.status==='open');if(!order)throw new Error('Open table order not found.');if(s.orders.some(x=>x.type==='table'&&x.table_id===b.to_table_id&&x.status==='open'))throw new Error('Destination table is occupied.');if(!s.tables.some(x=>x.id===b.to_table_id))throw new Error('Destination table not found.');order.table_id=b.to_table_id;order.updated_at=now;return {order};
