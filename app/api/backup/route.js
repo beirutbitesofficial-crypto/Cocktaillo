@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUser, allow } from '../../../lib/auth.js';
 import { readState, mutateState } from '../../../lib/store.js';
 
-const REQUIRED=['users','settings','tables','categories','menu','addons','shifts','orders','receipts','tickets','print_jobs','inventory','recipes','expenses','purchases','refunds','reservations','audit'];
+const REQUIRED=['users','settings','tables','categories','menu','addons','shifts','orders','receipts','tickets','inventory','recipes','expenses','reservations','audit'];
 
 export async function GET(){
  const user=await getUser();
@@ -24,6 +24,9 @@ export async function POST(request){
   await mutateState(async state=>{
    for(const key of Object.keys(state))delete state[key];
    Object.assign(state,JSON.parse(JSON.stringify(restored)));
+   state.print_jobs=Array.isArray(state.print_jobs)?state.print_jobs:[];
+   state.purchases=Array.isArray(state.purchases)?state.purchases:[];
+   state.refunds=Array.isArray(state.refunds)?state.refunds:[];
    state.audit=Array.isArray(state.audit)?state.audit:[];
    state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'backup_restored',user:user.name,at:new Date().toISOString(),reason:`Restored backup created ${backup.created_at||'unknown date'}`});
    return {ok:true};
