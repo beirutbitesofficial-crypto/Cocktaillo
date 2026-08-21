@@ -1,0 +1,19 @@
+{
+  "name": "Cocktaillo POS",
+  "short_name": "Cocktaillo",
+  "description": "Cocktaillo Resto Cafe Point of Sale",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#123f2b",
+  "icons": [
+    {
+      "src": "/cocktaillo-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
