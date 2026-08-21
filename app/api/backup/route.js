@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUser, allow } from '../../../lib/auth.js';
 import { readState, mutateState } from '../../../lib/store.js';
 
-const REQUIRED=['users','settings','tables','categories','menu','addons','shifts','orders','receipts','tickets','inventory','recipes','expenses','reservations','audit'];
+const REQUIRED=['users','settings','tables','categories','menu','addons','shifts','orders','receipts','tickets','print_jobs','inventory','recipes','expenses','purchases','refunds','reservations','audit'];
 
 export async function GET(){
  const user=await getUser();
