@@ -29,6 +29,9 @@ export async function POST(request){
   if(b.action==='adjust_inventory'){
     const item=state.inventory.find(x=>x.id===b.id);if(!item)throw new Error('Inventory item not found.');const delta=Number(b.delta||0);item.quantity=Number(item.quantity||0)+delta;item.updated_at=now;state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'inventory_adjustment',item_id:item.id,delta,reason:b.reason||'',user:user.name,at:now});return {item};
   }
+  if(b.action==='save_recipe'){
+    const menuItem=state.menu.find(x=>x.id===b.menu_item_id);if(!menuItem)throw new Error('Menu item not found.');const lines=(Array.isArray(b.lines)?b.lines:[]).map(line=>({inventory_id:line.inventory_id,quantity:Number(line.quantity||0)})).filter(line=>state.inventory.some(i=>i.id===line.inventory_id)&&line.quantity>0);let recipe=state.recipes.find(r=>r.menu_item_id===menuItem.id);if(!recipe){recipe={id:`recipe-${crypto.randomUUID()}`,menu_item_id:menuItem.id,lines:[]};state.recipes.push(recipe)}recipe.lines=lines;recipe.updated_at=now;return {recipe};
+  }
   if(b.action==='save_reservation'){
     const r={id:`res-${crypto.randomUUID()}`,table_id:b.table_id,name:b.name||'',phone:b.phone||'',guests:Number(b.guests||1),date_time:b.date_time||now,notes:b.notes||'',status:'reserved',created_by:user.name,created_at:now};state.reservations.push(r);return {reservation:r};
   }
