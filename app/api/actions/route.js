@@ -43,7 +43,18 @@ export async function POST(request){
    if(!allow(user,'manager'))throw new Error('Manager only.');const e={id:`exp-${crypto.randomUUID()}`,date:b.date||now.slice(0,10),category:b.category||'Other',amount:Number(b.amount||0),currency:b.currency||'USD',paid_from:b.paid_from||'owner',note:b.note||'',created_by:user.name,created_at:now};s.expenses.push(e);return {expense:e};
   }
   if(b.action==='save_settings'){
-   if(!allow(user,'manager'))throw new Error('Manager only.');s.settings={...s.settings,...b.settings,exchange_rate:Number(b.settings?.exchange_rate||s.settings.exchange_rate)};return {settings:s.settings};
+   if(!allow(user,'manager'))throw new Error('Manager only.');const nextTheme=['light','dark'].includes(b.settings?.theme)?b.settings.theme:s.settings.theme||'light';s.settings={...s.settings,...b.settings,theme:nextTheme,exchange_rate:Number(b.settings?.exchange_rate||s.settings.exchange_rate)};return {settings:s.settings};
+  }
+  if(b.action==='factory_reset'){
+   if(!allow(user,'manager'))throw new Error('Manager only.');
+   if(String(b.confirmation||'')!=='RESET COCKTAILLO')throw new Error('Type RESET COCKTAILLO to confirm.');
+   const manager=s.users.find(x=>x.id===user.id)||s.users.find(x=>x.role==='manager');
+   s.users=manager?[manager]:[];
+   s.shifts=[];s.orders=[];s.receipts=[];s.tickets=[];s.expenses=[];s.reservations=[];s.audit=[];s.next_order_number=1;
+   s.inventory=(s.inventory||[]).map(i=>({...i,quantity:0,updated_at:now}));
+   s.tables=(s.tables||[]).map(t=>({...t,status:'available'}));
+   s.audit.push({id:`audit-${crypto.randomUUID()}`,type:'factory_reset',user:user.name,at:now,reason:'Transactional data reset; configuration/catalog preserved.'});
+   return {ok:true};
   }
   throw new Error('Unknown action.');
  });return NextResponse.json(data)}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Action failed.'},{status:400})}
