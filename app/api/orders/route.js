@@ -10,6 +10,7 @@ export async function POST(request){
   if(type!=='table'&&!allow(user,'cashier','manager'))return NextResponse.json({error:'Counter orders require cashier access.'},{status:403});
   try{
     const result=await mutateState(state=>{
+      if(type!=='table'&&user.role==='cashier'&&!state.shifts.some(s=>s.user_id===user.id&&s.status==='open'))throw new Error('Open your shift before taking counter orders.');
       if(type==='table'&&!state.tables.some(t=>t.id===body.table_id))throw new Error('Table not found.');
       let order=type==='table'?state.orders.find(o=>o.type==='table'&&o.table_id===body.table_id&&o.status==='open'):null;
       if(!order){order={id:`ord-${crypto.randomUUID()}`,number:state.next_order_number++,type,table_id:type==='table'?body.table_id:null,customer:body.customer||null,created_by:user.id,created_by_name:user.name,status:type==='table'?'open':'pending_payment',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),lines:[],payments:[]};state.orders.push(order)}
