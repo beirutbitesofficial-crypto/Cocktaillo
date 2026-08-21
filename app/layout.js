@@ -1,4 +1,5 @@
 import './globals.css';
+import './theme.css';
 import UiBridge from './ui-bridge.js';
 export const metadata={title:'Cocktaillo POS',description:'Professional resto-cafe point of sale',icons:{icon:'/cocktaillo-logo.svg'}};
 export const viewport={themeColor:'#123f2b',width:'device-width',initialScale:1,viewportFit:'cover'};
