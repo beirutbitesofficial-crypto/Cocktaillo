@@ -1,0 +1,19 @@
+:root[data-theme='dark']{--cream:#18241d;--paper:#101a14;--ink:#edf4ef;--muted:#aab8af;--line:#2d3f34;--soft:#1a2b21;--shadow:0 12px 35px rgba(0,0,0,.28)}
+:root[data-theme='dark'] html,:root[data-theme='dark'] body{background:#0c140f;color:var(--ink)}
+:root[data-theme='dark'] .desktopNav{background:#0f1913;border-color:var(--line)}
+:root[data-theme='dark'] .navItem{color:#c8d7ce}
+:root[data-theme='dark'] .card,:root[data-theme='dark'] .menuPanel,:root[data-theme='dark'] .orderPanel,:root[data-theme='dark'] .menuItem,:root[data-theme='dark'] .listRow,:root[data-theme='dark'] .ticket,:root[data-theme='dark'] .tableBtn,:root[data-theme='dark'] .modal,:root[data-theme='dark'] .categoryBtn,:root[data-theme='dark'] .modeTabs button,:root[data-theme='dark'] .qty button,:root[data-theme='dark'] .addonBtn{background:#101a14;color:var(--ink);border-color:var(--line)}
+:root[data-theme='dark'] .menuItem:hover,:root[data-theme='dark'] .tableBtn.occupied{background:#19281f}
+:root[data-theme='dark'] .input{background:#152219;color:var(--ink);border-color:#33483a}
+:root[data-theme='dark'] .input::placeholder{color:#85978b}
+:root[data-theme='dark'] .categoryBtn,:root[data-theme='dark'] .modeTabs button{color:#c9d8cf}
+:root[data-theme='dark'] .categoryBtn.active,:root[data-theme='dark'] .modeTabs button.active,:root[data-theme='dark'] .addonBtn.active{background:var(--green);color:#fff;border-color:#315e45}
+:root[data-theme='dark'] .pill,:root[data-theme='dark'] .btnSoft{background:#1c3024;color:#d4e5da}
+:root[data-theme='dark'] .menuItem b,:root[data-theme='dark'] .addonBtn strong,:root[data-theme='dark'] .addonBtn small{color:#b9d7c4}
+:root[data-theme='dark'] .addonBtn.active strong,:root[data-theme='dark'] .addonBtn.active small{color:#fff}
+:root[data-theme='dark'] .orderLine{border-color:#26382d}
+:root[data-theme='dark'] .totals,:root[data-theme='dark'] .ticketLines{border-color:var(--line)}
+:root[data-theme='dark'] .loginPage{background:linear-gradient(140deg,#101a14,#17241c)}
+:root[data-theme='dark'] .loginCard{background:#101a14;border-color:#2d3f34}
+:root[data-theme='dark'] .brandLockup h1,:root[data-theme='dark'] .brandMark{color:#d9e8de;border-color:#d9e8de}
+.themeChooser{display:flex;gap:10px;flex-wrap:wrap}.themeChoice{display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:14px;padding:11px 15px;font-weight:800}.themeChoice.active{border:2px solid var(--green);box-shadow:0 0 0 3px rgba(18,63,43,.1)}.themeSwatch{width:24px;height:24px;border-radius:50%;border:1px solid var(--line)}.lightSwatch{background:#fffdf9}.darkSwatch{background:#101a14}.dangerZone{border:1px solid #c78585}.dangerZone h3{color:var(--danger);margin-top:0}.dangerZone p{color:var(--muted);line-height:1.5}
