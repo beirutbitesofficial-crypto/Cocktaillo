@@ -5,6 +5,11 @@ on:
     paths:
       - 'print-agent/**'
       - '.github/workflows/build-print-agent.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'print-agent/**'
+      - '.github/workflows/build-print-agent.yml'
   workflow_dispatch:
 jobs:
   build:
