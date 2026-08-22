@@ -5,7 +5,7 @@ const APPDIR=path.join(LOCAL,APP),CONFIG=path.join(APPDIR,'config.json'),LOG=pat
 const INSTALLED_EXE=path.join(APPDIR,'CocktailloPrintAgent.exe');
 const STARTUP=path.join(process.env.APPDATA||path.join(os.homedir(),'AppData','Roaming'),'Microsoft','Windows','Start Menu','Programs','Startup','CocktailloPrintAgent.cmd');
 function parse(p,f={}){try{return JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''))}catch{return f}}
-function initialConfig(){return {port:17483,token:crypto.randomBytes(32).toString('hex'),allowed_origins:['https://steelblue-giraffe-156727.hostingersite.com','http://localhost:3000'],printers:{customer:'Customer Receipt',kitchen:'Kitchen Printer',bar:'Bar Printer'}}}
+function initialConfig(){return {port:17483,token:crypto.randomBytes(32).toString('hex'),allowed_origins:['https://indigo-ape-952022.hostingersite.com','http://localhost:3000'],printers:{customer:'Customer Receipt',kitchen:'Kitchen Printer',bar:'Bar Printer'}}}
 function ensureConfig(){fs.mkdirSync(APPDIR,{recursive:true});if(!fs.existsSync(CONFIG))fs.writeFileSync(CONFIG,JSON.stringify(initialConfig(),null,2));return parse(CONFIG,initialConfig())}
 function openToken(config){try{const desktop=path.join(os.homedir(),'Desktop');const p=path.join(desktop,'Cocktaillo Printer Pairing Token.txt');fs.writeFileSync(p,`COCKTAILLO PRINTER AGENT\r\n\r\nPairing token:\r\n${config.token}\r\n\r\nAgent URL:\r\nhttp://127.0.0.1:${config.port}\r\n\r\nCustomer printer:\r\n${config.printers.customer}\r\n\r\nBar printer:\r\n${config.printers.bar}\r\n\r\nCopy the pairing token into Cocktaillo POS > Settings > Cashier Computer Printers.\r\n`);spawn('notepad.exe',[p],{detached:true,stdio:'ignore'}).unref()}catch{}}
 function psQuote(v){return `'${String(v).replace(/'/g,"''")}'`}
