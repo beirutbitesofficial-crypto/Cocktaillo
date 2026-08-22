@@ -17,12 +17,17 @@ Clean professional resto-cafe POS rebuild.
 ## Currency
 USD item prices + LBP add-ons are supported, with mixed USD/LBP settlement using the configured exchange rate.
 
-## Local credentials for first boot
-- manager / 2300
-- cashier / 1234
-- waiter / 12345678
+## First boot and users
+- Existing users and credentials are preserved during upgrades.
+- A fresh local development data file starts with the `manager` account only.
+- Cashier and waiter accounts should be created from the Manager users screen.
+- Before a fresh production boot, configure a strong initial Manager password through the deployment environment.
 
-Change production credentials and set `POS_SESSION_SECRET` before final handover.
+## Production safety
+- Set a strong `POS_SESSION_SECRET` in the deployment environment.
+- Keep `POS_DATA_FILE` on persistent storage.
+- Do not run separate deployments against separate copies of the JSON data file; all POS processes must share the same persistent data file.
+- Automatic daily snapshots are stored beside the configured data file in the `backups` directory.
 
 ## Deploy
 Node.js 22, Next.js. Build with `npm install && npm run build`, start with `npm start`.
