@@ -1,61 +1,56 @@
 # Cocktaillo Windows Print Agent
 
-This local agent enables silent 80mm customer receipt printing from the Cocktaillo web POS without using Chrome's print dialog or `window.print()`.
+This local Windows agent prints both 80mm customer receipts and Bar production tickets without QZ Tray or a browser print dialog.
 
-## Architecture
+## How it works
 
-- Binds only to `127.0.0.1:17483`.
-- Requires a 256-bit bearer pairing token.
-- Rejects browser origins not listed in `config.json`.
-- Supports Chrome Private Network Access preflight headers.
-- Sends RAW ESC/POS bytes directly to the Windows spooler using `OpenPrinter` / `WritePrinter`.
-- Customer destination defaults to the Windows printer named `Customer Receipt`.
-- Kitchen and Bar destination names are already reserved in the config for future routing.
-- Keeps a local `print-jobs.json` idempotency log, so the same print job ID is never printed twice after it has completed.
-- Sends an ESC/POS full-cut command after the receipt.
+- The agent binds only to 127.0.0.1:17483 on the cashier computer.
+- A 256-bit pairing token protects every request.
+- Allowed browser origins are controlled by config.json.
+- RAW ESC/POS bytes go directly to the selected Windows printers.
+- Customer and Bar printer names are configured independently in the POS browser.
+- Completed job IDs are stored locally, preventing duplicate printing after a retry or restart.
+- Kitchen printing is intentionally disabled in the POS for now.
 
-## Install on the Windows 10 POS computer
+A waiter can use the POS from a phone. Sending a table order creates a persistent Bar print job on the server. The cashier computer polls that queue and forwards the ticket to the local Bar printer. The phone never connects to a printer.
 
-1. Confirm Windows can print a test page to the printer named exactly `Customer Receipt`.
-2. Install Node.js 20 LTS or newer.
-3. Copy the entire `print-agent` folder to a permanent local folder, for example `C:\Cocktaillo\print-agent`.
-4. Open PowerShell as Administrator in that folder.
-5. Run:
+## Install on the Windows cashier computer
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\install-windows.ps1
-```
+1. In Windows, install both printers and confirm that each can print a Windows test page.
+2. Give them clear Windows names, for example Customer Receipt and Bar Printer.
+3. Install Node.js 20 LTS or newer.
+4. Copy the print-agent folder to a permanent folder such as C:\Cocktaillo\print-agent.
+5. Open PowerShell as Administrator in that folder and run:
 
-The installer creates `config.json`, registers a Windows Scheduled Task named `Cocktaillo Print Agent`, starts the agent, and prints the generated pairing token.
+    Set-ExecutionPolicy -Scope Process Bypass
+    .\install-windows.ps1
 
-## Pair the POS
+The installer creates config.json, registers the Cocktaillo Print Agent scheduled task, starts it, and displays the pairing token.
 
-In Cocktaillo POS, sign in as Manager and open **Settings → Customer Receipt Printer**.
+## Pair the POS browser
 
-- Agent URL: `http://127.0.0.1:17483`
-- Pairing token: paste the token from `config.json`
-- Click **Test Agent & Load Printers**
-- Select `Customer Receipt`
-- Save settings
+On the same Windows cashier computer:
 
-The token is stored only in that browser's `localStorage`; it is not uploaded into Cocktaillo's server data.
+1. Sign in as Manager.
+2. Open Settings, then Cashier Computer Printers.
+3. Leave the agent URL as http://127.0.0.1:17483.
+4. Paste the pairing token from config.json.
+5. Click Test Agent & Load Printers.
+6. Choose the installed Customer and Bar printers.
+7. Click Save on This Computer.
 
-## Printing flow
+The token and selections remain in browser localStorage on that computer. They are not uploaded to the POS server.
 
-1. Cashier payment succeeds on the POS backend.
-2. The backend receipt is final and remains paid regardless of printer state.
-3. The browser requests/gets a persistent Cocktaillo print job for the receipt.
-4. The browser sends that job to the local agent.
-5. The agent writes the formatted ESC/POS receipt directly to the selected Windows printer and triggers the cutter.
-6. Cocktaillo records the print job as `printed` or `failed`.
-7. Failed jobs display **Receipt printing failed – Retry**. Paid receipts remain paid.
-8. Manual reprints create a new explicit reprint job and are available from the POS **Receipts** screen.
+## Production flow
 
-## Security
+- Waiter phone order: server queue -> cashier browser worker -> local agent -> Bar printer.
+- Cashier payment: paid receipt -> local agent -> Customer printer.
+- A print failure never reverses a successful payment.
+- Failed jobs stay in the server queue and can be retried.
+- Kitchen tickets can still appear on the Kitchen board, but no Kitchen print job is created.
 
-The agent listens on loopback only and cannot be reached from another computer on the LAN. Keep the pairing token private. If the production Cocktaillo domain changes, add the exact new HTTPS origin to `allowed_origins` in `config.json`, then restart the scheduled task.
+## Security and troubleshooting
 
-## Troubleshooting
+Keep the token private. If the hosted POS domain changes, add its exact HTTPS origin to allowed_origins in config.json and restart the scheduled task.
 
-Check that the Windows printer name exactly matches `Customer Receipt`, the scheduled task is running, and `http://127.0.0.1:17483` is not blocked by local endpoint security software. Use **Test Agent & Load Printers** in Cocktaillo Settings to verify the browser can reach the agent and enumerate Windows printers.
+If printing does not start, verify the scheduled task is running, the two Windows printer names match the selections, and the Settings test can list both printers. The agent URL is deliberately restricted to localhost so the pairing token cannot be sent to another machine.
