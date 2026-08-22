@@ -32,3 +32,7 @@ USD item prices + LBP add-ons are supported, with mixed USD/LBP settlement using
 ## Deploy
 Node.js 22, Next.js. Build with `npm install && npm run build`, start with `npm start`.
 Health check: `/api/health`.
+
+## Printing
+
+Printing is centralized on the Windows cashier computer through the bundled Cocktaillo Print Agent; QZ Tray is not required. Waiter phones create persistent Bar print jobs that the cashier computer sends to the Bar printer. Paid customer receipts go to the separate Customer printer. Kitchen print jobs remain disabled for now. See print-agent/README.md for installation and pairing.
