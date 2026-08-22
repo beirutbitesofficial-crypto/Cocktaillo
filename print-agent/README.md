@@ -1,61 +1,50 @@
 # Cocktaillo Windows Print Agent
 
-This local agent enables silent 80mm customer receipt printing from the Cocktaillo web POS without using Chrome's print dialog or `window.print()`.
+Cocktaillo uses one local Windows print agent on the cashier POS computer. QZ Tray is not required.
 
-## Architecture
+## What the staff sees
 
-- Binds only to `127.0.0.1:17483`.
-- Requires a 256-bit bearer pairing token.
-- Rejects browser origins not listed in `config.json`.
-- Supports Chrome Private Network Access preflight headers.
-- Sends RAW ESC/POS bytes directly to the Windows spooler using `OpenPrinter` / `WritePrinter`.
-- Customer destination defaults to the Windows printer named `Customer Receipt`.
-- Kitchen and Bar destination names are already reserved in the config for future routing.
-- Keeps a local `print-jobs.json` idempotency log, so the same print job ID is never printed twice after it has completed.
-- Sends an ESC/POS full-cut command after the receipt.
+- **Waiter phone:** send the table order normally. No printer app, token, popup, or local printer connection is required on the phone.
+- **Cashier / Manager phone:** payments and reprints can be submitted normally. The receipt is queued for the cashier printer instead of trying to print from the phone.
+- **Cashier Windows POS:** this is the only device that needs the local print agent. It automatically prints queued customer receipts and Bar tickets.
 
-## Install on the Windows 10 POS computer
+If a printer is temporarily offline, the server keeps the job and retries with backoff. A job left in `printing` after a browser/PC interruption is automatically recovered back to the queue.
 
-1. Confirm Windows can print a test page to the printer named exactly `Customer Receipt`.
-2. Install Node.js 20 LTS or newer.
-3. Copy the entire `print-agent` folder to a permanent local folder, for example `C:\Cocktaillo\print-agent`.
-4. Open PowerShell as Administrator in that folder.
-5. Run:
+## Easiest install
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\install-windows.ps1
-```
+1. Install the Windows driver for both thermal printers and confirm each printer can print a Windows test page.
+2. Download the `CocktailloPrintAgent.exe` artifact produced by the **Build Windows Print Agent** GitHub Action.
+3. Double-click `CocktailloPrintAgent.exe` once. It installs itself under `%LOCALAPPDATA%\CocktailloPrintAgent`, registers itself to start with Windows, starts silently, and opens a Notepad file containing the pairing token.
+4. On the cashier Windows POS, sign in as Manager and open **Settings > POS Printing**.
+5. Paste the pairing token and click **Connect & Load Printers**.
+6. Choose the Windows printer for **Customer receipt printer** and the Windows printer for **Bar printer**.
+7. Choose 80 mm or 58 mm and click **Save Printer Setup**.
 
-The installer creates `config.json`, registers a Windows Scheduled Task named `Cocktaillo Print Agent`, starts the agent, and prints the generated pairing token.
+That setup is stored only in that Windows browser. Waiter/manager phones do not need to repeat it.
 
-## Pair the POS
+## How printing works
 
-In Cocktaillo POS, sign in as Manager and open **Settings → Customer Receipt Printer**.
+1. A waiter sends an order from the phone.
+2. Cocktaillo saves the order and creates the Bar print job on the server.
+3. The configured cashier Windows device checks that its local print agent is healthy before it claims any job.
+4. It claims the next queued job, renders Arabic Bar tickets as a printer raster image, and sends the RAW ESC/POS bytes to the selected Windows printer.
+5. Customer receipts use the same central queue and the selected customer printer.
+6. The server records `printed` or `failed`. Failed jobs stay available for automatic retry.
 
-- Agent URL: `http://127.0.0.1:17483`
-- Pairing token: paste the token from `config.json`
-- Click **Test Agent & Load Printers**
-- Select `Customer Receipt`
-- Save settings
-
-The token is stored only in that browser's `localStorage`; it is not uploaded into Cocktaillo's server data.
-
-## Printing flow
-
-1. Cashier payment succeeds on the POS backend.
-2. The backend receipt is final and remains paid regardless of printer state.
-3. The browser requests/gets a persistent Cocktaillo print job for the receipt.
-4. The browser sends that job to the local agent.
-5. The agent writes the formatted ESC/POS receipt directly to the selected Windows printer and triggers the cutter.
-6. Cocktaillo records the print job as `printed` or `failed`.
-7. Failed jobs display **Receipt printing failed – Retry**. Paid receipts remain paid.
-8. Manual reprints create a new explicit reprint job and are available from the POS **Receipts** screen.
+This prevents a manager phone or waiter phone from accidentally claiming a printer job and failing it.
 
 ## Security
 
-The agent listens on loopback only and cannot be reached from another computer on the LAN. Keep the pairing token private. If the production Cocktaillo domain changes, add the exact new HTTPS origin to `allowed_origins` in `config.json`, then restart the scheduled task.
+- The agent listens only on `127.0.0.1:17483`.
+- It requires the random pairing token generated on that computer.
+- It only accepts configured Cocktaillo browser origins.
+- The pairing token is stored locally in the cashier browser and is not uploaded to the POS database.
+- Completed job IDs are remembered locally so the same job is not physically printed twice after a successful print.
 
 ## Troubleshooting
 
-Check that the Windows printer name exactly matches `Customer Receipt`, the scheduled task is running, and `http://127.0.0.1:17483` is not blocked by local endpoint security software. Use **Test Agent & Load Printers** in Cocktaillo Settings to verify the browser can reach the agent and enumerate Windows printers.
+- Open **Settings > POS Printing** on the cashier Windows computer and click **Connect & Load Printers**.
+- Confirm the selected printer names exactly match Windows.
+- Confirm the Windows printer is online and has paper.
+- If the PC was restarted, the agent should start automatically with Windows. If needed, run the installed agent again.
+- Waiter phones should never need printer troubleshooting; their job is only to submit the order.
