@@ -9,11 +9,14 @@ let connecting=null;
 let qzLib=null;
 let workerTimer=null;
 let workerBusy=false;
+let lastPrinterCheckAt=0;
+let lastDestinations=[];
 
 function emit(detail){if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('cocktaillo-print-status',{detail}))}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function money(c){return `$${(Number(c||0)/100).toFixed(2)}`}
 function lbp(v){return `${Number(v||0).toLocaleString('en-US')} LBP`}
+function isWindowsDevice(){return typeof navigator!=='undefined'&&/Windows/i.test(navigator.userAgent||'')}
 
 async function getQz(){
   if(qzLib)return qzLib;
@@ -26,10 +29,17 @@ async function ensureQz(){
   const qz=await getQz();
   if(qz.websocket.isActive())return qz;
   if(connecting)return connecting;
-  connecting=qz.websocket.connect({retries:2,delay:0.5}).then(()=>qz).finally(()=>{connecting=null});
+  connecting=qz.websocket.connect({retries:1,delay:0.5}).then(()=>qz).finally(()=>{connecting=null});
   return connecting;
 }
 async function ensurePrinter(name){const qz=await ensureQz();const found=await qz.printers.find(name);if(!found)throw new Error(`QZ Tray cannot find Windows printer: ${name}`);return {qz,found}}
+async function availableDestinations(force=false){
+  if(!isWindowsDevice())return [];
+  const now=Date.now();if(!force&&now-lastPrinterCheckAt<10000)return lastDestinations;
+  lastPrinterCheckAt=now;
+  try{const qz=await ensureQz();const printers=await qz.printers.find();lastDestinations=[];if(printers.includes(BAR_PRINTER))lastDestinations.push('bar');if(printers.includes(CUSTOMER_PRINTER))lastDestinations.push('customer');return lastDestinations}
+  catch{lastDestinations=[];return []}
+}
 async function pixelPrint(printer,html,{cut=true}={}){
   const {qz,found}=await ensurePrinter(printer);
   const config=qz.configs.create(found,{copies:1,margins:0,colorType:'grayscale'});
@@ -48,39 +58,58 @@ function barHtml(ticket){
   return shell(`<div class="c b big">COCKTAILLO</div><div class="c b">BAR</div><div class="c b">Order #${esc(ticket.order_number||'')}</div>${ticket.table?`<div class="c b">${esc(ticket.table)}</div>`:''}<div class="c small">${esc(ticket.created_at?new Date(ticket.created_at).toLocaleString('en-GB'):new Date().toLocaleString('en-GB'))}</div><div class="line"></div>${items}<div class="line"></div><div class="c b">${esc(ticket.staff_name||'')}</div>`,'rtl');
 }
 async function serverPost(body){const f=nativeFetch||fetch;const r=await f('/api/print-jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Print server HTTP ${r.status}`);return d}
-async function executeCustomerJob(bundle){
+async function executeCustomerJob(bundle,{claimed=false}={}){
   const {job,receipt,printer_name,should_print}=bundle;
   if(!should_print){if(job?.status==='printed')emit({status:'printed',jobId:job.id,receiptId:job.receipt_id,message:`Receipt #${job.order_number} already printed.`});return bundle}
-  await serverPost({action:'status',job_id:job.id,status:'printing'});
+  if(!claimed)await serverPost({action:'status',job_id:job.id,status:'printing'});
   try{await pixelPrint(printer_name||CUSTOMER_PRINTER,customerHtml(receipt),{cut:true});await serverPost({action:'status',job_id:job.id,status:'printed'});emit({status:'printed',jobId:job.id,receiptId:job.receipt_id,message:`Customer receipt #${job.order_number} printed.`});return bundle}
   catch(e){await serverPost({action:'status',job_id:job.id,status:'failed',error:e.message}).catch(()=>{});throw Object.assign(e,{jobId:job.id,receiptId:job.receipt_id})}
 }
-export async function autoPrintCustomerReceipt(receiptId){try{const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'automatic'});return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||null,receiptId:e.receiptId||receiptId,message:'Receipt printing failed',error:e.message});throw e}}
-export async function reprintCustomerReceipt(receiptId){try{const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'reprint'});return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||null,receiptId:e.receiptId||receiptId,message:'Receipt printing failed',error:e.message});throw e}}
-export async function retryPrintJob(jobId){try{const bundle=await serverPost({action:'retry',job_id:jobId});if(bundle.job?.destination==='bar'){await pixelPrint(bundle.printer_name||BAR_PRINTER,barHtml(bundle.ticket),{cut:false});await serverPost({action:'status',job_id:jobId,status:'printed'});return bundle}return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||jobId,receiptId:e.receiptId||null,message:'Receipt printing failed',error:e.message});throw e}}
-async function processBarQueue(){
-  if(workerBusy)return;workerBusy=true;
+export async function autoPrintCustomerReceipt(receiptId){
+  const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'automatic'});
+  const destinations=await availableDestinations();
+  if(!destinations.includes('customer')){emit({status:'queued',jobId:bundle.job?.id||null,receiptId,message:`Receipt #${bundle.job?.order_number||''} queued for cashier printer.`});return bundle}
+  try{return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||bundle.job?.id||null,receiptId,message:'Receipt printing failed on cashier device',error:e.message});throw e}
+}
+export async function reprintCustomerReceipt(receiptId){
+  const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'reprint'});
+  const destinations=await availableDestinations(true);
+  if(!destinations.includes('customer')){emit({status:'queued',jobId:bundle.job?.id||null,receiptId,message:`Receipt #${bundle.job?.order_number||''} queued for cashier printer.`});return bundle}
+  return executeCustomerJob(bundle)
+}
+export async function retryPrintJob(jobId){
+  const bundle=await serverPost({action:'retry',job_id:jobId}),destinations=await availableDestinations(true),destination=bundle.job?.destination;
+  if(!destinations.includes(destination)){emit({status:'queued',jobId,message:'Print job is queued for the cashier Windows printer.'});return bundle}
+  try{if(destination==='bar'){await pixelPrint(bundle.printer_name||BAR_PRINTER,barHtml(bundle.ticket),{cut:false});await serverPost({action:'status',job_id:jobId,status:'printed'});return bundle}return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||jobId,receiptId:e.receiptId||null,message:'Printing failed on cashier device',error:e.message});throw e}
+}
+async function processPrintQueue(){
+  if(workerBusy)return;
+  const destinations=await availableDestinations();
+  if(!destinations.length)return;
+  workerBusy=true;
   try{
-    const bundle=await serverPost({action:'claim-next'});
+    const bundle=await serverPost({action:'claim-next',destinations});
     if(!bundle?.job)return;
     try{
-      await pixelPrint(bundle.printer_name||BAR_PRINTER,barHtml(bundle.ticket),{cut:false});
-      await serverPost({action:'status',job_id:bundle.job.id,status:'printed'});
-      emit({status:'printed',jobId:bundle.job.id,message:`Bar ticket #${bundle.job.order_number} printed.`});
-    }catch(e){await serverPost({action:'status',job_id:bundle.job.id,status:'failed',error:e.message}).catch(()=>{});emit({status:'failed',jobId:bundle.job.id,message:'Bar ticket printing failed',error:e.message})}
+      if(bundle.job.destination==='bar'){
+        await pixelPrint(bundle.printer_name||BAR_PRINTER,barHtml(bundle.ticket),{cut:false});
+        await serverPost({action:'status',job_id:bundle.job.id,status:'printed'});
+        emit({status:'printed',jobId:bundle.job.id,message:`Bar ticket #${bundle.job.order_number} printed.`});
+      }else await executeCustomerJob(bundle,{claimed:true});
+    }catch(e){await serverPost({action:'status',job_id:bundle.job.id,status:'failed',error:e.message}).catch(()=>{});emit({status:'failed',jobId:bundle.job.id,message:`Print job #${bundle.job.order_number} queued for retry`,error:e.message})}
   }catch{}finally{workerBusy=false}
 }
 export function startCentralPrintWorker(){
-  if(typeof window==='undefined'||workerTimer)return()=>{};
-  void processBarQueue();
-  workerTimer=window.setInterval(()=>void processBarQueue(),1200);
+  if(typeof window==='undefined'||workerTimer||!isWindowsDevice())return()=>{};
+  void processPrintQueue();
+  workerTimer=window.setInterval(()=>void processPrintQueue(),1800);
   return()=>{if(workerTimer){clearInterval(workerTimer);workerTimer=null}}
 }
 export async function testQzPrinters(){const qz=await ensureQz();const printers=await qz.printers.find();return {ok:true,printers,customer:printers.includes(CUSTOMER_PRINTER),bar:printers.includes(BAR_PRINTER)}}
 export function installPrintBridgeInterceptor(){
   if(installed||typeof window==='undefined')return()=>{};installed=true;nativeFetch=window.fetch.bind(window);
   window.fetch=async function(input,init){const response=await nativeFetch(input,init);try{const url=typeof input==='string'?input:input?.url||'';if(response.ok&&init?.method?.toUpperCase()==='POST'){
-    const cloned=response.clone();cloned.json().then(d=>{if((url.includes('/api/actions')||url.includes('/api/split-pay'))&&d?.receipt?.id)void autoPrintCustomerReceipt(d.receipt.id)}).catch(()=>{});
+    const cloned=response.clone();cloned.json().then(d=>{if((url.includes('/api/actions')||url.includes('/api/split-pay'))&&d?.receipt?.id)void autoPrintCustomerReceipt(d.receipt.id).catch(()=>{})}).catch(()=>{});
   }}catch{}return response};
   return()=>{if(nativeFetch){window.fetch=nativeFetch;installed=false}}
 }
