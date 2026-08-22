@@ -14,6 +14,17 @@ Clean professional resto-cafe POS rebuild.
 - Desserts and drinks default to Bar; future food can route to Kitchen.
 - Customer receipts are separate from production tickets.
 
+## Printing
+- QZ Tray is not required.
+- One cashier Windows POS runs the Cocktaillo Print Agent and stores its pairing token locally.
+- Waiter and manager phones never connect directly to Windows printers.
+- Waiter orders create server-side Bar print jobs; the configured Windows POS automatically claims and prints them.
+- Customer receipts use the same central queue, so a payment made from another device is still printed by the cashier Windows POS.
+- Arabic Bar tickets are rendered as raster output before being sent as RAW ESC/POS data, avoiding printer Arabic-codepage problems.
+- Interrupted or temporarily failed print jobs remain queued and retry with backoff instead of being lost.
+
+See `print-agent/README.md` for the Windows setup.
+
 ## Currency
 USD item prices + LBP add-ons are supported, with mixed USD/LBP settlement using the configured exchange rate.
 
