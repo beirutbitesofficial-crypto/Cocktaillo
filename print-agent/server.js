@@ -1,7 +1,7 @@
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),{spawn}=require('child_process');
 const ROOT=__dirname,CONFIG=path.join(ROOT,'config.json'),LOG=path.join(ROOT,'print-jobs.json');
 function parseJsonFile(p,fallback={}){try{return JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''))}catch{return fallback}}
-function loadConfig(){if(fs.existsSync(CONFIG))return parseJsonFile(CONFIG,{});const c={port:17483,token:crypto.randomBytes(32).toString('hex'),allowed_origins:['https://steelblue-giraffe-156727.hostingersite.com','http://localhost:3000'],printers:{customer:'Customer Receipt',kitchen:'Kitchen Printer',bar:'Bar Printer'}};fs.writeFileSync(CONFIG,JSON.stringify(c,null,2));return c}
+function loadConfig(){if(fs.existsSync(CONFIG))return parseJsonFile(CONFIG,{});const c={port:17483,token:crypto.randomBytes(32).toString('hex'),allowed_origins:['https://indigo-ape-952022.hostingersite.com','http://localhost:3000'],printers:{customer:'Customer Receipt',kitchen:'Kitchen Printer',bar:'Bar Printer'}};fs.writeFileSync(CONFIG,JSON.stringify(c,null,2));return c}
 const config=loadConfig();let jobs=fs.existsSync(LOG)?parseJsonFile(LOG,{}):{};let queue=Promise.resolve();
 function saveJobs(){fs.writeFileSync(LOG,JSON.stringify(jobs,null,2))}
 function cors(req,res){const o=req.headers.origin||'';if(o&&config.allowed_origins.includes(o))res.setHeader('Access-Control-Allow-Origin',o);res.setHeader('Vary','Origin');res.setHeader('Access-Control-Allow-Headers','Authorization,Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Private-Network','true')}
