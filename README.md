@@ -21,10 +21,10 @@ USD item prices + LBP add-ons are supported, with mixed USD/LBP settlement using
 - Existing users and credentials are preserved during upgrades.
 - A fresh local development data file starts with the `manager` account only.
 - Cashier and waiter accounts should be created from the Manager users screen.
-- Before a fresh production boot, configure a strong initial Manager password through the deployment environment.
+- Before a fresh production boot, set `POS_INITIAL_MANAGER_PASSWORD` to a strong password (minimum 8 characters).
 
 ## Production safety
-- Set a strong `POS_SESSION_SECRET` in the deployment environment.
+- Set `POS_SESSION_SECRET` to at least 32 characters in the deployment environment. If it is missing or weak, the server uses a secure temporary secret and sessions reset after a restart.
 - Keep `POS_DATA_FILE` on persistent storage.
 - Do not run separate deployments against separate copies of the JSON data file; all POS processes must share the same persistent data file.
 - Automatic daily snapshots are stored beside the configured data file in the `backups` directory.
