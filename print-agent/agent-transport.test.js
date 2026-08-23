@@ -10,6 +10,7 @@ const read=name=>fs.readFileSync(path.join(__dirname,name),'utf8');
 const standalone=read('standalone.js');
 const server=read('server.js');
 const rawHelper=read('print-raw.ps1');
+const arabicRenderer=read('arabic-ticket.js');
 
 test('standalone EXE streams large customer payloads through stdin',()=>{
   const payload=receiptEscpos({
@@ -31,4 +32,14 @@ test('source agent and raw helper also accept payload bytes on stdin',()=>{
   assert.ok(!server.includes("'-Base64',buffer.toString('base64')"));
   assert.ok(rawHelper.includes('[Console]::In.ReadToEnd()'));
   assert.ok(!rawHelper.includes('[Parameter(Mandatory=$true)][string]$Base64'));
+});
+
+test('both agent entry points await the Windows Arabic raster renderer for Bar jobs',()=>{
+  for(const source of [standalone,server]){
+    assert.ok(source.includes("const {renderArabicTicket}=require('./arabic-ticket.js')"));
+    assert.ok(source.includes("destination==='bar'?await renderArabicTicket"));
+  }
+  assert.ok(arabicRenderer.includes('DirectionRightToLeft'));
+  assert.ok(arabicRenderer.includes('CocktailloRasterEncoder'));
+  assert.ok(arabicRenderer.includes('maxRowsPerCommand = 512'));
 });
