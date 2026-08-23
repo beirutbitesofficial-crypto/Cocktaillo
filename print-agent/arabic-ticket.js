@@ -21,7 +21,7 @@ function dateParts(value){
 function arabicTableLabel(value){
   const table=cleanText(value);
   if(!table)return 'كاونتر';
-  if(/^طاولة\b/u.test(table))return table;
+  if(/^طاولة(?:\s|$)/u.test(table))return table;
   const english=table.match(/^table\s*[:#-]?\s*(.+)$/i);
   return english?'طاولة '+english[1]:'الطاولة: '+table;
 }
@@ -62,7 +62,7 @@ $ErrorActionPreference='Stop'
 [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding=[System.Text.ASCIIEncoding]::new()
 Add-Type -AssemblyName System.Drawing
-Add-Type -TypeDefinition @'
+$rendererSource=@'
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -133,6 +133,7 @@ public static class CocktailloRasterEncoder
     }
 }
 '@
+Add-Type -TypeDefinition $rendererSource -ReferencedAssemblies 'System.Drawing.dll'
 
 $document=[Console]::In.ReadToEnd() | ConvertFrom-Json
 $width=[int]$document.width
