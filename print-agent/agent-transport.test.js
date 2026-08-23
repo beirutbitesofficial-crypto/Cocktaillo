@@ -11,6 +11,8 @@ const standalone=read('standalone.js');
 const server=read('server.js');
 const rawHelper=read('print-raw.ps1');
 const arabicRenderer=read('arabic-ticket.js');
+const printClient=fs.readFileSync(path.join(__dirname,'..','app','components','print-client.js'),'utf8');
+const printJobsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','print-jobs','route.js'),'utf8');
 
 test('standalone EXE streams large customer payloads through stdin',()=>{
   const payload=receiptEscpos({
@@ -42,4 +44,14 @@ test('both agent entry points await the Windows Arabic raster renderer for Bar j
   assert.ok(arabicRenderer.includes('DirectionRightToLeft'));
   assert.ok(arabicRenderer.includes('CocktailloRasterEncoder'));
   assert.ok(arabicRenderer.includes('maxRowsPerCommand = 512'));
+});
+
+test('paid receipt drawer policy is preserved from checkout to both agent entry points',()=>{
+  assert.ok(printJobsRoute.includes("open_drawer:mode==='automatic'"));
+  assert.ok(printJobsRoute.includes("if(existing.status!=='printed')existing.open_drawer=true"));
+  assert.ok(printClient.includes("open_drawer:bundle.job?.open_drawer===true"));
+  for(const source of [standalone,server]){
+    assert.ok(source.includes("receiptEscpos(b.receipt||{},{openDrawer:destination==='customer'&&b.open_drawer===true})"));
+    assert.ok(source.includes("version:'2.4.0'"));
+  }
 });

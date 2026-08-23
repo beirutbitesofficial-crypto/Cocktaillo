@@ -6,6 +6,7 @@ const QTY_W=4;
 const PRICE_W=11;
 const COMMAND={
   init:Buffer.from([0x1b,0x40]),
+  openDrawer:Buffer.from([0x1b,0x70,0x00,0x19,0xfa]),
   left:Buffer.from([0x1b,0x61,0x00]),
   center:Buffer.from([0x1b,0x61,0x01]),
   boldOn:Buffer.from([0x1b,0x45,0x01]),
@@ -71,8 +72,8 @@ function qrCommands(value){
 function getLogoRaster(){return logoRaster}
 function writer(chunks){return value=>chunks.push(Buffer.from(String(value),'ascii'))}
 
-function receiptEscpos(receipt={}){
-  const chunks=[COMMAND.init,COMMAND.center,COMMAND.normal],txt=writer(chunks),stamp=dateParts(receipt.created_at),logo=getLogoRaster(),displayTable=tableLabel(receipt.table);
+function receiptEscpos(receipt={},options={}){
+  const chunks=[COMMAND.init];if(options.openDrawer===true)chunks.push(COMMAND.openDrawer);chunks.push(COMMAND.center,COMMAND.normal),txt=writer(chunks),stamp=dateParts(receipt.created_at),logo=getLogoRaster(),displayTable=tableLabel(receipt.table);
   if(logo){chunks.push(logo);txt('\n')}else{chunks.push(COMMAND.boldOn,COMMAND.double);txt('COCKTAILLO\n');chunks.push(COMMAND.normal,COMMAND.boldOff);txt('RESTO - CAFE\n')}
   chunks.push(COMMAND.boldOn,COMMAND.double);txt('CUSTOMER RECEIPT\n');chunks.push(COMMAND.normal,COMMAND.boldOff,COMMAND.left);txt(rule('=')+'\n');
   for(const row of pairRows(`Receipt: ${receiptNumber(receipt.order_number)}`,displayTable))txt(row+'\n');

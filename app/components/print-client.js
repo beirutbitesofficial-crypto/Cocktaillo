@@ -48,7 +48,7 @@ async function agentPrint(bundle){
   const settings=checkedSettings(getPrintAgentSettings());
   const destination=bundle.job?.destination==='bar'?'bar':'customer';
   const printerName=destination==='bar'?settings.barPrinter:settings.customerPrinter;
-  return agentRequest('/print',{method:'POST',settings,body:{job_id:bundle.job.id,destination,printer_name:printerName,receipt:bundle.receipt||null,ticket:bundle.ticket||null}});
+  return agentRequest('/print',{method:'POST',settings,body:{job_id:bundle.job.id,destination,printer_name:printerName,receipt:bundle.receipt||null,ticket:bundle.ticket||null,open_drawer:bundle.job?.open_drawer===true}});
 }
 
 async function serverPost(body){const f=nativeFetch||fetch;const r=await f('/api/print-jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Print server HTTP ${r.status}`);return d}
