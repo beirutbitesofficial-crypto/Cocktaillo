@@ -57,7 +57,7 @@ function buildArabicTicketDocument(ticket={}){
   return {width:PAPER_WIDTH,max_height:MAX_CANVAS_HEIGHT,blocks};
 }
 
-const POWERSHELL_RENDER_SCRIPT=String.raw\`
+const POWERSHELL_RENDER_SCRIPT=String.raw`
 $ErrorActionPreference='Stop'
 [Console]::InputEncoding=[System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding=[System.Text.ASCIIEncoding]::new()
@@ -193,7 +193,7 @@ finally {
   $graphics.Dispose()
   $bitmap.Dispose()
 }
-\`;
+`;
 
 function renderArabicTicket(ticket={},options={}){
   if(process.platform!=='win32')return Promise.reject(new Error('Arabic Bar ticket raster rendering requires Windows.'));
