@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$PrinterName,[Parameter(Mandatory=$true)][string]$Base64)
+param([Parameter(Mandatory=$true)][string]$PrinterName,[string]$Base64)
 $source=@"
 using System;
 using System.Runtime.InteropServices;
@@ -20,6 +20,7 @@ public class RawPrinter {
 }
 "@
 Add-Type -TypeDefinition $source -ErrorAction Stop
+if([string]::IsNullOrWhiteSpace($Base64)){$Base64=[Console]::In.ReadToEnd()}
 $bytes=[Convert]::FromBase64String($Base64)
 [RawPrinter]::Send($PrinterName,$bytes)
 Write-Output '{"ok":true}'
