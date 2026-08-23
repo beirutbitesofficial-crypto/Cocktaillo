@@ -6,6 +6,7 @@ const {receiptEscpos,ticketEscpos,orderType,receiptNumber,__test}=require('./pri
 const logoRaster=require('./logo-raster.js');
 
 const containsBytes=(buffer,bytes)=>buffer.includes(Buffer.from(bytes));
+const DRAWER_PULSE=Buffer.from([0x1b,0x70,0x00,0x19,0xfa]);
 
 const receiptFixture={
   order_number:1028,
@@ -37,6 +38,17 @@ test('customer receipt contains the polished structure, logo and QR',()=>{
   assert.ok(containsBytes(output,[0x1d,0x28,0x6b]),'missing native QR command');
   assert.ok(containsBytes(output,[0x1d,0x56,0x00]),'missing cut command');
   for(const marker of ['CUSTOMER RECEIPT','CTL-1028','Table 05','ITEM','QTY','PRICE','Cappuccino','Crispy Chicken Burger','Subtotal','Discount','TOTAL $18.00','Payment','USD + LBP','CHANGE','$2.00','SCAN & FOLLOW US','@cocktaillorestocafe','WE HOPE TO SEE YOU AGAIN!'])assert.ok(text.includes(marker),`missing ${marker}`);
+});
+
+test('customer receipt opens the cash drawer only when explicitly requested',()=>{
+  const normal=receiptEscpos(receiptFixture);
+  const explicitFalse=receiptEscpos(receiptFixture,{openDrawer:false});
+  const paid=receiptEscpos(receiptFixture,{openDrawer:true});
+  assert.equal(normal.indexOf(DRAWER_PULSE),-1);
+  assert.equal(explicitFalse.indexOf(DRAWER_PULSE),-1);
+  assert.equal(paid.indexOf(DRAWER_PULSE),2,'drawer pulse must immediately follow ESC @ init');
+  assert.equal(paid.indexOf(DRAWER_PULSE,3),-1,'drawer pulse must occur exactly once');
+  assert.deepEqual(paid.subarray(7,10),Buffer.from([0x1b,0x61,0x01]));
 });
 
 test('receipt helpers preserve the safe 42-column paper width',()=>{
