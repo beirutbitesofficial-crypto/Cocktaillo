@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 18
       - run: npm install
+      - run: npm test
+      - shell: pwsh
+        run: "[void][scriptblock]::Create((Get-Content -Raw ./print-raw.ps1))"
+      - run: node --check server.js
       - run: node --check standalone.js
       - run: npm run build:exe
       - uses: actions/upload-artifact@v4
