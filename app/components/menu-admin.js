@@ -5,12 +5,18 @@ import {Input,PageHeader,post,usd} from './ui.js';
 export default function MenuAdmin({data,reload}){
   const empty={name_en:'',name_ar:'',category:'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',station:'bar',allow_addons:false,available:true,best_seller:false};
   const[item,setItem]=useState(empty);
+  const[newCategory,setNewCategory]=useState('');
   const[syncing,setSyncing]=useState(false);
   const editing=Boolean(item.id);
   const isManager=data.user?.role==='manager';
   const menuItems=[...(data.menu_all||data.menu||[])].sort((a,b)=>Number(Boolean(b.best_seller))-Number(Boolean(a.best_seller))||Number(a.sort_order||0)-Number(b.sort_order||0));
   function edit(i){setItem({...i,price_usd:((Number(i.price_cents)||0)/100).toFixed(2),available:i.available!==false,best_seller:Boolean(i.best_seller)})}
   function cancel(){setItem(empty)}
+  async function addCategory(){
+    const name=newCategory.trim();
+    if(!name)return alert('Enter a category name.');
+    try{await post('/api/admin',{action:'add_category',name});setNewCategory('');setItem({...item,category:name});await reload()}catch(e){alert(e.message)}
+  }
   async function saveItem(){
     try{
       const price=Number(item.price_usd);
@@ -30,7 +36,8 @@ export default function MenuAdmin({data,reload}){
     try{const r=await fetch('/api/menu-sync',{method:'POST'});const out=await r.json();if(!r.ok)throw new Error(out.error||'Menu sync failed.');alert(`Website menu synced. Added ${out.added}, updated ${out.updated}${out.skipped?`, skipped ${out.skipped} deleted item(s)`:''}.`);await reload()}catch(e){alert(e.message)}finally{setSyncing(false)}
   }
   return <>
-    <PageHeader title="Menu Management" sub="Add, edit, mark best sellers, sync website items and delete POS menu items."/>
+    <PageHeader title="Menu Management" sub="Add categories and items, edit prices, mark best sellers, sync website items and delete POS menu items."/>
+    {isManager&&<div className="card" style={{marginBottom:12}}><strong>Add Category</strong><small style={{display:'block',color:'var(--muted)',marginTop:4,marginBottom:10}}>Create a new category and use it immediately for menu items.</small><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Category name" value={newCategory} onChange={setNewCategory}/></div><button className="btn btnPrimary" onClick={addCategory}>Add Category</button></div></div>}
     {isManager&&<div className="card" style={{marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><strong>Website menu sync</strong><small style={{display:'block',color:'var(--muted)',marginTop:4}}>Import the same Cocktaillo website menu items and prices without deleting POS history. Items you delete in the POS stay deleted on future syncs.</small></div><button className="btn btnSoft" disabled={syncing} onClick={syncWebsite}>{syncing?'Syncing…':'Sync from website'}</button></div>}
     <div className="card formGrid">
       <Input label="English name" value={item.name_en} onChange={v=>setItem({...item,name_en:v})}/>
