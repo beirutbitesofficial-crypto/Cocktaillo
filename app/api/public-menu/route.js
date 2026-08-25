@@ -5,7 +5,17 @@ const slug=value=>String(value||'menu').trim().toLowerCase().replace(/[^a-z0-9]+
 
 export async function GET(){
   const state=await readState();
+  const exchangeRate=Math.max(1,Number(state.settings?.exchange_rate||89500));
   const categoryOrder=new Map((state.categories||[]).map((name,index)=>[String(name),index]));
+  const addons=(state.addons||[])
+    .filter(addon=>addon.available!==false)
+    .map(addon=>({
+      id:String(addon.id),
+      name:String(addon.name_en||''),
+      name_ar:String(addon.name_ar||''),
+      price_lbp:Math.max(0,Number(addon.price_lbp||0)),
+      price_usd:Math.round((Math.max(0,Number(addon.price_lbp||0))/exchangeRate)*100)/100
+    }));
   const items=(state.menu||[])
     .filter(item=>item.available!==false)
     .map(item=>({
@@ -15,6 +25,7 @@ export async function GET(){
       category:String(item.category||'Menu'),
       subcategory:String(item.subcategory||''),
       price:Number(item.price_cents||0)/100,
+      allow_addons:Boolean(item.allow_addons),
       best_seller:Boolean(item.best_seller),
       sort_order:Number(item.sort_order||0)
     }))
@@ -32,6 +43,8 @@ export async function GET(){
   return NextResponse.json({
     source:'cocktaillo-pos',
     generated_at:new Date().toISOString(),
+    exchange_rate:exchangeRate,
+    addons,
     categories,
     items
   },{headers:{'Cache-Control':'no-store, max-age=0'}});
