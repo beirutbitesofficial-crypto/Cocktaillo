@@ -16,6 +16,9 @@ const printJobsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','print
 const ordersRoute=fs.readFileSync(path.join(__dirname,'..','app','api','orders','route.js'),'utf8');
 const settingsPanel=fs.readFileSync(path.join(__dirname,'..','app','components','settings-panel.js'),'utf8');
 const store=fs.readFileSync(path.join(__dirname,'..','lib','store.js'),'utf8');
+const actionsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','actions','route.js'),'utf8');
+const websiteMenu=fs.readFileSync(path.join(__dirname,'..','lib','alqaima-menu.js'),'utf8');
+const installer=read('install-windows.ps1');
 
 test('standalone EXE streams large customer payloads through stdin',()=>{
   const payload=receiptEscpos({
@@ -72,4 +75,18 @@ test('Hookah lines are isolated from Bar and routed to the exact HOOKAH printer'
   assert.ok(printClient.includes("DEFAULT_HOOKAH_PRINTER='HOOKAH'"));
   assert.ok(printClient.includes("destination==='hookah'?settings.hookahPrinter"));
   assert.ok(settingsPanel.includes('<label>Hookah printer</label>'));
+  assert.ok(printClient.includes("if(!['bar','hookah','customer'].includes(destination))"));
+  assert.ok(printJobsRoute.includes("if(job.destination!=='customer')throw new Error('Unsupported print destination.')"));
+  assert.ok(actionsRoute.includes("destination:'hookah'"));
+  assert.ok(actionsRoute.includes("kind:'VOID'"));
+  assert.ok(websiteMenu.includes("/hookah/i.test(category)?'hookah'"));
+});
+
+test('existing Agent configuration gains HOOKAH without losing saved printer mappings',()=>{
+  for(const source of [standalone,server]){
+    assert.ok(source.includes("printers:{...defaults.printers,...(saved.printers||{})}"));
+    assert.ok(source.includes("hookah:'HOOKAH'"));
+  }
+  assert.ok(installer.includes("PSObject.Properties['hookah']"));
+  assert.ok(installer.includes("Add-Member -MemberType NoteProperty -Name hookah -Value 'HOOKAH'"));
 });
