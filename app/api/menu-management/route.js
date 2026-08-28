@@ -21,7 +21,7 @@ export async function POST(request){
         if(!state.categories.includes(input.category))state.categories.push(input.category);
         if(input.subcategory&&!state.subcategories.includes(input.subcategory))state.subcategories.push(input.subcategory);
         if(!item){item={id:`item-${crypto.randomUUID()}`,sort_order:state.menu.length+1};state.menu.push(item)}
-        const station=input.category==='Hookah'?'service':['bar','kitchen','service'].includes(input.station)?input.station:'bar';
+        const station=input.category==='Hookah'?'hookah':['bar','kitchen','service'].includes(input.station)?input.station:'bar';
         Object.assign(item,{
           name_en:String(input.name_en).trim(),
           name_ar:String(input.name_ar).trim(),
