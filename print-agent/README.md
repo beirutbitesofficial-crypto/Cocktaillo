@@ -43,7 +43,8 @@ The token and selections remain in browser localStorage on that computer. They a
 
 ## Production flow
 
-- Waiter phone drink order: server queue -> cashier browser worker -> local agent -> Bar printer.\n- Waiter phone Hookah order: Hookah lines only -> cashier browser worker -> local agent -> HOOKAH printer in Arabic.
+- Waiter phone drink order: server queue -> cashier browser worker -> local agent -> Bar printer.
+- Waiter phone Hookah order: Hookah lines only -> cashier browser worker -> local agent -> HOOKAH printer in Arabic.
 - Cashier payment: paid receipt -> local agent -> Customer printer.
 - A print failure never reverses a successful payment.
 - Failed jobs stay in the server queue and can be retried.
