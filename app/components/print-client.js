@@ -47,7 +47,8 @@ async function availableDestinations(force=false){
 }
 async function agentPrint(bundle){
   const settings=checkedSettings(getPrintAgentSettings());
-  const destination=bundle.job?.destination==='bar'?'bar':bundle.job?.destination==='hookah'?'hookah':'customer';
+  const destination=bundle.job?.destination;
+  if(!['bar','hookah','customer'].includes(destination))throw new Error('Unsupported print destination.');
   const printerName=destination==='bar'?settings.barPrinter:destination==='hookah'?settings.hookahPrinter:settings.customerPrinter;
   return agentRequest('/print',{method:'POST',settings,body:{job_id:bundle.job.id,destination,printer_name:printerName,receipt:bundle.receipt||null,ticket:bundle.ticket||null,open_drawer:bundle.job?.open_drawer===true}});
 }
