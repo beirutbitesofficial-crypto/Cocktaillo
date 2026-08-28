@@ -1,1 +1,1 @@
-Current build source includes delayed self-install copy fix.
+Build request for Cocktaillo Windows Print Agent 2.5.0 artifact.
