@@ -17,7 +17,7 @@ export async function GET(){
       price_usd:Math.round((Math.max(0,Number(addon.price_lbp||0))/exchangeRate)*100)/100
     }));
   const items=(state.menu||[])
-    .filter(item=>item.available!==false)
+    .filter(item=>!item.deleted&&item.available!==false)
     .map(item=>({
       id:String(item.id),
       name:String(item.name_en||''),

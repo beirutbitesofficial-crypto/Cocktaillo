@@ -16,7 +16,7 @@ export async function POST(request){
       if(b.action==='save_menu_item'){
         if(!allow(user,'manager','cashier'))throw new Error('Manager or cashier required.');
         const input=b.item||{};
-        let item=input.id?state.menu.find(x=>x.id===input.id):null;
+        let item=input.id?state.menu.find(x=>x.id===input.id&&!x.deleted):null;
         if(!input.name_en||!input.name_ar||!input.category)throw new Error('English name, Arabic name and category are required.');
         if(!state.categories.includes(input.category))state.categories.push(input.category);
         if(input.subcategory&&!state.subcategories.includes(input.subcategory))state.subcategories.push(input.subcategory);
@@ -31,6 +31,7 @@ export async function POST(request){
           station,
           allow_addons:Boolean(input.allow_addons),
           available:input.available!==false,
+          deleted:false,
           sort_order:Number(input.sort_order||item.sort_order||1)
         });
         const key=menuKey(item.name_en);
@@ -41,11 +42,14 @@ export async function POST(request){
       }
       if(b.action==='delete_menu_item'){
         if(!allow(user,'manager'))throw new Error('Manager only.');
-        const item=state.menu.find(x=>x.id===b.id);
+        const item=state.menu.find(x=>x.id===b.id&&!x.deleted);
         if(!item)throw new Error('Menu item not found.');
         const key=menuKey(item.name_en);
         if(key&&!state.deleted_website_menu_names.includes(key))state.deleted_website_menu_names.push(key);
-        state.menu=state.menu.filter(x=>x.id!==item.id);
+        item.deleted=true;
+        item.available=false;
+        item.deleted_at=now;
+        item.deleted_by=user.name;
         state.recipes=(state.recipes||[]).filter(r=>r.menu_item_id!==item.id);
         state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_deleted',item_id:item.id,item_name:item.name_en,user:user.name,at:now});
         return {ok:true,id:item.id};
