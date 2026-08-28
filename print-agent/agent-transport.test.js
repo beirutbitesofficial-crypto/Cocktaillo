@@ -13,6 +13,9 @@ const rawHelper=read('print-raw.ps1');
 const arabicRenderer=read('arabic-ticket.js');
 const printClient=fs.readFileSync(path.join(__dirname,'..','app','components','print-client.js'),'utf8');
 const printJobsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','print-jobs','route.js'),'utf8');
+const ordersRoute=fs.readFileSync(path.join(__dirname,'..','app','api','orders','route.js'),'utf8');
+const settingsPanel=fs.readFileSync(path.join(__dirname,'..','app','components','settings-panel.js'),'utf8');
+const store=fs.readFileSync(path.join(__dirname,'..','lib','store.js'),'utf8');
 
 test('standalone EXE streams large customer payloads through stdin',()=>{
   const payload=receiptEscpos({
@@ -36,10 +39,11 @@ test('source agent and raw helper also accept payload bytes on stdin',()=>{
   assert.ok(!rawHelper.includes('[Parameter(Mandatory=$true)][string]$Base64'));
 });
 
-test('both agent entry points await the Windows Arabic raster renderer for Bar jobs',()=>{
+test('both agent entry points await the Windows Arabic raster renderer for Bar and Hookah jobs',()=>{
   for(const source of [standalone,server]){
     assert.ok(source.includes("const {renderArabicTicket}=require('./arabic-ticket.js')"));
-    assert.ok(source.includes("destination==='bar'?await renderArabicTicket"));
+    assert.ok(source.includes("b.destination==='hookah'?'hookah'"));
+    assert.ok(source.includes("(destination==='bar'||destination==='hookah')?await renderArabicTicket"));
   }
   assert.ok(arabicRenderer.includes('DirectionRightToLeft'));
   assert.ok(arabicRenderer.includes('CocktailloRasterEncoder'));
@@ -52,6 +56,20 @@ test('paid receipt drawer policy is preserved from checkout to both agent entry 
   assert.ok(printClient.includes("open_drawer:bundle.job?.open_drawer===true"));
   for(const source of [standalone,server]){
     assert.ok(source.includes("receiptEscpos(b.receipt||{},{openDrawer:destination==='customer'&&b.open_drawer===true})"));
-    assert.ok(source.includes("version:'2.4.0'"));
+    assert.ok(source.includes("version:'2.5.0'"));
   }
+});
+
+test('Hookah lines are isolated from Bar and routed to the exact HOOKAH printer',()=>{
+  assert.ok(store.includes("hookah_printer_name:'HOOKAH'"));
+  assert.ok(store.includes("if(next.category==='Hookah'&&!next.deleted)next.station='hookah'"));
+  assert.ok(ordersRoute.includes('const stationLines={bar:[],kitchen:[],hookah:[]}'));
+  assert.ok(ordersRoute.includes("const station=item.category==='Hookah'?'hookah'"));
+  assert.ok(ordersRoute.includes("for(const station of ['bar','kitchen','hookah'])"));
+  assert.ok(ordersRoute.includes("destination:station"));
+  assert.ok(ordersRoute.includes("state.settings.hookah_printer_name||'HOOKAH'"));
+  assert.ok(printJobsRoute.includes("x==='bar'||x==='hookah'||x==='customer'"));
+  assert.ok(printClient.includes("DEFAULT_HOOKAH_PRINTER='HOOKAH'"));
+  assert.ok(printClient.includes("destination==='hookah'?settings.hookahPrinter"));
+  assert.ok(settingsPanel.includes('<label>Hookah printer</label>'));
 });
