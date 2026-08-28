@@ -13,7 +13,7 @@ async function syncMenu(){
     if(!items.length)throw new Error('No Cocktaillo menu items were found at the website source.');
     const result=await mutateState(state=>{
       const merged=mergeCocktailloWebsiteMenu(state,items);
-      for(const item of state.menu||[])if(item.category==='Hookah')item.station='service';
+      for(const item of state.menu||[])if(item.category==='Hookah')item.station='hookah';
       ensureDefaultRecipes(state);
       state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'website_menu_synced',source:COCKTAILLO_MENU_SOURCE,added:merged.added,updated:merged.updated,total:merged.total,user:user.name,at:new Date().toISOString()});
       return merged;

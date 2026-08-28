@@ -33,10 +33,10 @@ function textBlock(text,{size=26,bold=false,align='right',rtl=true,inverse=false
 function ruleBlock(){return {type:'rule',top:7,bottom:7}}
 
 function buildArabicTicketDocument(ticket={}){
-  const kind=cleanText(ticket.kind||'NEW').toUpperCase(),isVoid=kind==='VOID',stamp=dateParts(ticket.created_at);
+  const kind=cleanText(ticket.kind||'NEW').toUpperCase(),isVoid=kind==='VOID',isHookah=cleanText(ticket.station).toLowerCase()==='hookah',stamp=dateParts(ticket.created_at);
   const orderNumber=cleanText(ticket.order_number||'--'),staff=cleanText(ticket.staff_name||''),blocks=[];
-  blocks.push(textBlock(isVoid?'إلغاء طلب البار':'طلب بار جديد',{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
-  blocks.push(textBlock('كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
+  blocks.push(textBlock(isVoid?(isHookah?'إلغاء طلب أراكيل':'إلغاء طلب البار'):(isHookah?'طلب أراكيل جديد':'طلب بار جديد'),{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
+  blocks.push(textBlock(isHookah?'كوكتايلو - الأراكيل':'كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
   blocks.push(textBlock('طلب رقم '+orderNumber,{size:36,bold:true,align:'center',top:5,bottom:2}));
   blocks.push(textBlock(arabicTableLabel(ticket.table),{size:38,bold:true,align:'center',top:2,bottom:6}));
   blocks.push(textBlock(stamp.date+'   '+stamp.time,{size:23,bold:true,align:'center',rtl:false,top:3,bottom:4}));
@@ -173,7 +173,7 @@ try {
       $measured=$graphics.MeasureString([string]$block.text,$font,$measureArea,$format)
       [single]$textHeight=[Math]::Ceiling([Math]::Max($font.Height,$measured.Height))+4
       [single]$blockHeight=$textHeight+$bottom
-      if($y+$blockHeight+20 -ge $maxHeight){throw 'Arabic Bar ticket is too long to render.'}
+      if($y+$blockHeight+20 -ge $maxHeight){throw 'Arabic production ticket is too long to render.'}
       [single]$x=$margin
       $rectangle=[System.Drawing.RectangleF]::new($x,$y,$contentWidth,$textHeight)
       $brush=if([bool]$block.inverse){[System.Drawing.Brushes]::White}else{[System.Drawing.Brushes]::Black}
@@ -197,22 +197,22 @@ finally {
 `;
 
 function renderArabicTicket(ticket={},options={}){
-  if(process.platform!=='win32')return Promise.reject(new Error('Arabic Bar ticket raster rendering requires Windows.'));
+  if(process.platform!=='win32')return Promise.reject(new Error('Arabic production ticket raster rendering requires Windows.'));
   const spawnProcess=options.spawnProcess||spawn,document=buildArabicTicketDocument(ticket);
   const encoded=Buffer.from(POWERSHELL_RENDER_SCRIPT,'utf16le').toString('base64');
   return new Promise((resolve,reject)=>{
     const processHandle=spawnProcess('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',encoded],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     let stdout='',stderr='',settled=false;
     const finishError=error=>{if(settled)return;settled=true;reject(error)};
-    processHandle.stdout.on('data',chunk=>{stdout+=chunk;if(stdout.length>16*1024*1024){processHandle.kill();finishError(new Error('Arabic Bar ticket raster output is too large.'))}});
-    processHandle.stderr.on('data',chunk=>{stderr+=chunk;if(stderr.length>1024*1024){processHandle.kill();finishError(new Error('Arabic Bar ticket renderer returned too much error output.'))}});
+    processHandle.stdout.on('data',chunk=>{stdout+=chunk;if(stdout.length>16*1024*1024){processHandle.kill();finishError(new Error('Arabic production ticket raster output is too large.'))}});
+    processHandle.stderr.on('data',chunk=>{stderr+=chunk;if(stderr.length>1024*1024){processHandle.kill();finishError(new Error('Arabic production ticket renderer returned too much error output.'))}});
     processHandle.on('error',finishError);
     processHandle.on('close',code=>{
       if(settled)return;
-      if(code!==0)return finishError(new Error(stderr.trim()||'Arabic Bar ticket renderer exited '+code));
+      if(code!==0)return finishError(new Error(stderr.trim()||'Arabic production ticket renderer exited '+code));
       try{
         const output=Buffer.from(stdout.trim(),'base64');
-        if(output.length<20||output[0]!==0x1b||output[1]!==0x40||!output.includes(RASTER_COMMAND))throw new Error('Arabic Bar ticket renderer returned invalid ESC/POS data.');
+        if(output.length<20||output[0]!==0x1b||output[1]!==0x40||!output.includes(RASTER_COMMAND))throw new Error('Arabic production ticket renderer returned invalid ESC/POS data.');
         settled=true;
         resolve(output);
       }catch(error){finishError(error)}

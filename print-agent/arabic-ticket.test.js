@@ -34,6 +34,16 @@ test('Arabic Bar document prefers Arabic item data and translates every producti
   assert.ok(document.blocks.some(block=>block.inverse&&block.text==='ملاحظة: بدون ثلج وخليه بارد كتير'));
 });
 
+test('Arabic Hookah document uses Hookah labels and keeps only its supplied order lines',()=>{
+  const document=buildArabicTicketDocument({...fixture,station:'hookah',lines:[{name_en:'Two Apples',name_ar:'تفاحتين فاخر',quantity:1,addons:[],note:'خفيفة'}]}),text=textLines(document);
+  for(const marker of ['طلب أراكيل جديد','كوكتايلو - الأراكيل','1 × تفاحتين فاخر','ملاحظة: خفيفة','حضّر الطلب الآن']){
+    assert.ok(text.includes(marker),'missing '+marker);
+  }
+  assert.ok(!text.includes('طلب بار جديد'));
+  assert.ok(!text.includes('كوكتايلو - البار'));
+  assert.ok(!text.some(line=>line.includes('عصير كوكتيل طازج')),'Bar lines must not appear on a Hookah-only ticket');
+});
+
 test('Arabic Bar document keeps safe fallbacks and makes void tickets unmistakable',()=>{
   const document=buildArabicTicketDocument({kind:'VOID',order_number:9,lines:[{name_en:'Cappuccino',quantity:1,note:'Customer changed mind'}]}),text=textLines(document);
   for(const marker of ['إلغاء طلب البار','طلب رقم 9','كاونتر','1 × Cappuccino','ملاحظة: Customer changed mind','لا تحضّر الطلب']){
@@ -41,6 +51,14 @@ test('Arabic Bar document keeps safe fallbacks and makes void tickets unmistakab
   }
   assert.equal(__test.arabicTableLabel('VIP 1'),'الطاولة: VIP 1');
   assert.equal(__test.arabicTableLabel('طاولة 7'),'طاولة 7');
+});
+
+test('Arabic Hookah void ticket is unmistakable',()=>{
+  const document=buildArabicTicketDocument({station:'hookah',kind:'VOID',order_number:17,table:'Table 2',lines:[{name_ar:'ليمون ونعنع',quantity:1,addons:[],note:'إلغاء: الزبون غيّر رأيه'}]}),text=textLines(document);
+  for(const marker of ['إلغاء طلب أراكيل','كوكتايلو - الأراكيل','طلب رقم 17','طاولة 2','1 × ليمون ونعنع','ملاحظة: إلغاء: الزبون غيّر رأيه','لا تحضّر الطلب']){
+    assert.ok(text.includes(marker),'missing '+marker);
+  }
+  assert.ok(!text.includes('إلغاء طلب البار'));
 });
 
 test('Windows renderer emits chunked 576-dot ESC/POS raster data and a cut command',{skip:process.platform!=='win32',timeout:30000},async()=>{
