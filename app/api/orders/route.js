@@ -16,7 +16,16 @@ export async function POST(request){
       let order=type==='table'?state.orders.find(o=>o.type==='table'&&o.table_id===body.table_id&&o.status==='open'):null;
       if(!order){order={id:`ord-${crypto.randomUUID()}`,number:state.next_order_number++,type,table_id:type==='table'?body.table_id:null,customer:body.customer||null,created_by:user.id,created_by_name:user.name,status:type==='table'?'open':'pending_payment',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),lines:[],payments:[]};state.orders.push(order)}
       const stationLines={bar:[],kitchen:[]};
-      for(const raw of body.lines){const item=state.menu.find(x=>x.id===raw.menu_item_id&&x.available);const qty=Math.max(1,Math.floor(Number(raw.quantity||1)));if(!item)throw new Error('Invalid menu item.');const selected=(item.allow_addons?raw.addons||[]:[]).map(a=>{const found=state.addons.find(x=>x.id===a.id&&x.available);return found?{id:found.id,name_en:found.name_en,name_ar:found.name_ar,price_lbp:found.price_lbp,quantity:Math.max(1,Math.floor(Number(a.quantity||1)))}:null}).filter(Boolean);const line={id:`line-${crypto.randomUUID()}`,menu_item_id:item.id,name_en:item.name_en,name_ar:item.name_ar,price_cents:item.price_cents,station:item.station,quantity:qty,addons:selected,note:String(raw.note||'').trim()};order.lines.push(line);stationLines[item.station].push(line)}
+      for(const raw of body.lines){
+        const item=state.menu.find(x=>x.id===raw.menu_item_id&&x.available);
+        const qty=Math.max(1,Math.floor(Number(raw.quantity||1)));
+        if(!item)throw new Error('Invalid menu item.');
+        const selected=(item.allow_addons?raw.addons||[]:[]).map(a=>{const found=state.addons.find(x=>x.id===a.id&&x.available);return found?{id:found.id,name_en:found.name_en,name_ar:found.name_ar,price_lbp:found.price_lbp,quantity:Math.max(1,Math.floor(Number(a.quantity||1)))}:null}).filter(Boolean);
+        const station=['bar','kitchen','service'].includes(item.station)?item.station:'bar';
+        const line={id:`line-${crypto.randomUUID()}`,menu_item_id:item.id,name_en:item.name_en,name_ar:item.name_ar,price_cents:item.price_cents,station,quantity:qty,addons:selected,note:String(raw.note||'').trim()};
+        order.lines.push(line);
+        if(stationLines[station])stationLines[station].push(line);
+      }
       order.updated_at=new Date().toISOString();
       state.print_jobs=Array.isArray(state.print_jobs)?state.print_jobs:[];
       for(const station of ['bar','kitchen'])if(stationLines[station].length){
