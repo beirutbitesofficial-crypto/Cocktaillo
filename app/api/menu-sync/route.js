@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUser, allow } from '../../../lib/auth.js';
 import { mutateState } from '../../../lib/store.js';
 import { fetchCocktailloWebsiteMenu, mergeCocktailloWebsiteMenu, COCKTAILLO_MENU_SOURCE } from '../../../lib/alqaima-menu.js';
+import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
 
 async function syncMenu(){
   const user=await getUser();
@@ -12,6 +13,8 @@ async function syncMenu(){
     if(!items.length)throw new Error('No Cocktaillo menu items were found at the website source.');
     const result=await mutateState(state=>{
       const merged=mergeCocktailloWebsiteMenu(state,items);
+      for(const item of state.menu||[])if(item.category==='Hookah')item.station='service';
+      ensureDefaultRecipes(state);
       state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'website_menu_synced',source:COCKTAILLO_MENU_SOURCE,added:merged.added,updated:merged.updated,total:merged.total,user:user.name,at:new Date().toISOString()});
       return merged;
     });
