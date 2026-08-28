@@ -6,7 +6,7 @@ if(-not (Test-Path '.\config.json')){
   $bytes=New-Object byte[] 32
   [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
   $token=([System.BitConverter]::ToString($bytes)).Replace('-','').ToLowerInvariant()
-  $config=[ordered]@{port=17483;token=$token;allowed_origins=@('https://indigo-ape-952022.hostingersite.com','http://localhost:3000');printers=[ordered]@{customer='Customer Receipt';kitchen='Kitchen Printer';bar='Bar Printer'}}
+  $config=[ordered]@{port=17483;token=$token;allowed_origins=@('https://indigo-ape-952022.hostingersite.com','http://localhost:3000');printers=[ordered]@{customer='Customer Receipt';kitchen='Kitchen Printer';bar='Bar Printer';hookah='HOOKAH'}}
   $config | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 '.\config.json'
 }
 $Node=(Get-Command node).Source
