@@ -35,4 +35,4 @@ Health check: `/api/health`.
 
 ## Printing
 
-Printing is centralized on the Windows cashier computer through the bundled Cocktaillo Print Agent; QZ Tray is not required. Waiter phones create persistent Bar print jobs that the cashier computer sends to the Bar printer. Paid customer receipts print silently and automatically on the separate Customer printer, with no receipt modal or browser print dialog. Kitchen print jobs remain disabled for now. See print-agent/README.md for installation and pairing.
+Printing is centralized on the Windows cashier computer through the bundled Cocktaillo Print Agent; QZ Tray is not required. Waiter phones create separate persistent production jobs: Bar lines go only to the Bar printer, while Hookah lines go only to the HOOKAH printer as Arabic tickets. Paid customer receipts print silently and automatically on the separate Customer printer, with no receipt modal or browser print dialog. Kitchen print jobs remain disabled for now. See print-agent/README.md for installation and pairing.
