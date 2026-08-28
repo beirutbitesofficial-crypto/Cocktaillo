@@ -53,6 +53,14 @@ test('Arabic Bar document keeps safe fallbacks and makes void tickets unmistakab
   assert.equal(__test.arabicTableLabel('طاولة 7'),'طاولة 7');
 });
 
+test('Arabic Hookah void ticket is unmistakable',()=>{
+  const document=buildArabicTicketDocument({station:'hookah',kind:'VOID',order_number:17,table:'Table 2',lines:[{name_ar:'ليمون ونعنع',quantity:1,addons:[],note:'إلغاء: الزبون غيّر رأيه'}]}),text=textLines(document);
+  for(const marker of ['إلغاء طلب أراكيل','كوكتايلو - الأراكيل','طلب رقم 17','طاولة 2','1 × ليمون ونعنع','ملاحظة: إلغاء: الزبون غيّر رأيه','لا تحضّر الطلب']){
+    assert.ok(text.includes(marker),'missing '+marker);
+  }
+  assert.ok(!text.includes('إلغاء طلب البار'));
+});
+
 test('Windows renderer emits chunked 576-dot ESC/POS raster data and a cut command',{skip:process.platform!=='win32',timeout:30000},async()=>{
   const output=await renderArabicTicket(fixture),raster=Buffer.from([0x1d,0x76,0x30,0x00]);
   assert.deepEqual(output.subarray(0,2),Buffer.from([0x1b,0x40]));
