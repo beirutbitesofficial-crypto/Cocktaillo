@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUser, allow } from '../../../lib/auth.js';
 import { mutateState } from '../../../lib/store.js';
+import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
 
 const menuKey=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 
@@ -20,20 +21,21 @@ export async function POST(request){
         if(!state.categories.includes(input.category))state.categories.push(input.category);
         if(input.subcategory&&!state.subcategories.includes(input.subcategory))state.subcategories.push(input.subcategory);
         if(!item){item={id:`item-${crypto.randomUUID()}`,sort_order:state.menu.length+1};state.menu.push(item)}
+        const station=input.category==='Hookah'?'service':['bar','kitchen','service'].includes(input.station)?input.station:'bar';
         Object.assign(item,{
           name_en:String(input.name_en).trim(),
           name_ar:String(input.name_ar).trim(),
           category:String(input.category),
           subcategory:String(input.subcategory||''),
           price_cents:Math.round(Number(input.price_usd||0)*100),
-          station:input.station==='kitchen'?'kitchen':'bar',
+          station,
           allow_addons:Boolean(input.allow_addons),
           available:input.available!==false,
-          best_seller:Boolean(input.best_seller),
           sort_order:Number(input.sort_order||item.sort_order||1)
         });
         const key=menuKey(item.name_en);
         state.deleted_website_menu_names=state.deleted_website_menu_names.filter(x=>x!==key);
+        ensureDefaultRecipes(state);
         state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_saved',item_id:item.id,user:user.name,at:now});
         return {item};
       }
