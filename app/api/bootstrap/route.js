@@ -3,6 +3,7 @@ import { getUser } from '../../../lib/auth.js';
 import { readState, mutateState, publicUser, publicSettings, orderTotal, orderCost } from '../../../lib/store.js';
 import { fetchCocktailloWebsiteMenu, mergeCocktailloWebsiteMenu, COCKTAILLO_MENU_SOURCE } from '../../../lib/alqaima-menu.js';
 import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
+import { dedupeMenuItems } from '../../../lib/menu-dedupe.js';
 
 let catalogPrepared=false;
 async function ensureCatalogPrepared(){
@@ -40,7 +41,7 @@ export async function GET(){
   await ensureCatalogPrepared();
   await ensureWebsiteMenu(user);
   const s=await readState(),rate=Number(s.settings.exchange_rate||89500);
-  const visibleMenu=(s.menu||[]).filter(item=>!item.deleted);
+  const visibleMenu=dedupeMenuItems((s.menu||[]).filter(item=>!item.deleted));
   const withTotals=o=>({...o,totals:orderTotal(o,rate)});
   const openOrders=s.orders.filter(o=>o.status==='open').map(withTotals);
   const recentOrders=s.orders.slice(-1000).reverse().map(withTotals);
