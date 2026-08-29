@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readState } from '../../../lib/store.js';
+import { dedupeMenuItems } from '../../../lib/menu-dedupe.js';
 
 const slug=value=>String(value||'menu').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'menu';
 
@@ -16,8 +17,7 @@ export async function GET(){
       price_lbp:Math.max(0,Number(addon.price_lbp||0)),
       price_usd:Math.round((Math.max(0,Number(addon.price_lbp||0))/exchangeRate)*100)/100
     }));
-  const items=(state.menu||[])
-    .filter(item=>!item.deleted&&item.available!==false)
+  const items=dedupeMenuItems((state.menu||[]).filter(item=>!item.deleted&&item.available!==false))
     .map(item=>({
       id:String(item.id),
       name:String(item.name_en||''),
