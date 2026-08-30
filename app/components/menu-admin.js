@@ -6,16 +6,36 @@ export default function MenuAdmin({data,reload}){
   const empty={name_en:'',name_ar:'',category:data.categories?.[0]||'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',station:'bar',allow_addons:false,available:true};
   const[item,setItem]=useState(empty);
   const[query,setQuery]=useState('');
+  const[selectedCategory,setSelectedCategory]=useState('all');
+  const[selectedSubcategory,setSelectedSubcategory]=useState('all');
   const[newCategory,setNewCategory]=useState('');
   const[syncing,setSyncing]=useState(false);
   const[saving,setSaving]=useState(false);
   const editing=Boolean(item.id);
   const isManager=data.user?.role==='manager';
   const search=query.trim().toLowerCase();
-  const menuItems=[...(data.menu_all||data.menu||[])]
-    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory].some(value=>String(value||'').toLowerCase().includes(search)))
-    .sort((a,b)=>Number(Boolean(b.best_seller))-Number(Boolean(a.best_seller))||Number(b.units_sold||0)-Number(a.units_sold||0)||Number(a.sort_order||0)-Number(b.sort_order||0));
+  const rawMenu=[...(data.menu_all||data.menu||[])];
+  const categoryOrder=new Map((data.categories||[]).map((name,index)=>[String(name),index]));
+  const websiteOrder=(a,b)=>Number(Boolean(b.best_seller))-Number(Boolean(a.best_seller))||
+    (categoryOrder.get(String(a.category))??9999)-(categoryOrder.get(String(b.category))??9999)||
+    Number(a.sort_order||0)-Number(b.sort_order||0)||String(a.name_en||'').localeCompare(String(b.name_en||''));
+  const orderedMenu=[...rawMenu].sort(websiteOrder);
+  const categoryNames=[
+    ...(data.categories||[]).filter(category=>orderedMenu.some(i=>String(i.category)===String(category))),
+    ...Array.from(new Set(orderedMenu.map(i=>String(i.category||'Menu')))).filter(category=>!(data.categories||[]).includes(category))
+  ];
+  const categoryMenu=selectedCategory==='all'?orderedMenu:orderedMenu.filter(i=>String(i.category)===selectedCategory);
+  const subcategoryNames=selectedCategory==='all'?[]:Array.from(new Set(
+    categoryMenu.map(i=>String(i.subcategory||'').trim()).filter(Boolean)
+  ));
+  const menuItems=categoryMenu
+    .filter(i=>selectedSubcategory==='all'||String(i.subcategory||'')===selectedSubcategory)
+    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory].some(value=>String(value||'').toLowerCase().includes(search)));
 
+  function selectCategory(category){
+    setSelectedCategory(category);
+    setSelectedSubcategory('all');
+  }
   function edit(i){
     setItem({
       id:i.id,
@@ -59,8 +79,10 @@ export default function MenuAdmin({data,reload}){
     setSyncing(true);
     try{const r=await fetch('/api/menu-sync',{method:'POST'});const out=await r.json();if(!r.ok)throw new Error(out.error||'Menu sync failed.');alert(`Website menu synced. Added ${out.added}, updated ${out.updated}${out.skipped?`, skipped ${out.skipped} deleted item(s)`:''}.`);await reload()}catch(e){alert(e.message)}finally{setSyncing(false)}
   }
+  const filterRow={display:'flex',gap:8,overflowX:'auto',paddingBottom:4,WebkitOverflowScrolling:'touch'};
+  const filterButton={whiteSpace:'nowrap',borderRadius:999,flex:'0 0 auto'};
   return <>
-    <PageHeader title="Menu Management" sub="Search the full menu, edit each item independently, control production routing, and automatically identify the top-selling item from paid orders."/>
+    <PageHeader title="Menu Management" sub="Website-matched category, subcategory and item order for fast POS ↔ website checking."/>
     {isManager&&<div className="card" style={{marginBottom:12}}><strong>Add Category</strong><small style={{display:'block',color:'var(--muted)',marginTop:4,marginBottom:10}}>Create a new category and use it immediately for menu items.</small><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Category name" value={newCategory} onChange={setNewCategory}/></div><button className="btn btnPrimary" onClick={addCategory}>Add Category</button></div></div>}
     {isManager&&<div className="card" style={{marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><strong>Website menu sync</strong><small style={{display:'block',color:'var(--muted)',marginTop:4}}>Import the same Cocktaillo website menu items and prices without deleting POS history. Items you delete in the POS stay deleted on future syncs.</small></div><button className="btn btnSoft" disabled={syncing} onClick={syncWebsite}>{syncing?'Syncing…':'Sync from website'}</button></div>}
     <div className="card formGrid">
@@ -77,9 +99,24 @@ export default function MenuAdmin({data,reload}){
     </div>
     <div className="card" style={{marginTop:12}}>
       <Input label="Search menu" value={query} onChange={setQuery} placeholder="Search by English/Arabic name, category or subcategory"/>
-      <small style={{display:'block',color:'var(--muted)',marginTop:8}}>★ Best Seller is automatic: it is the item with the highest quantity sold across paid orders, including historical orders. Refunded, void and unpaid orders are excluded.</small>
+      <small style={{display:'block',color:'var(--muted)',marginTop:8}}>Website order is used below: main categories first, then each category's subcategories and menu items in the same sequence. ★ Best Seller follows the same priority as the website.</small>
     </div>
-    <div className="menuGrid section">{menuItems.map(i=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
-    {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match “{query}”.</div>}
+    <div className="card" style={{marginTop:12}}>
+      <strong style={{display:'block',marginBottom:10}}>Main categories</strong>
+      <div style={filterRow}>
+        <button className={`btn ${selectedCategory==='all'?'btnPrimary':'btnSoft'}`} style={filterButton} onClick={()=>selectCategory('all')}>All</button>
+        {categoryNames.map(category=><button key={category} className={`btn ${selectedCategory===category?'btnPrimary':'btnSoft'}`} style={filterButton} onClick={()=>selectCategory(category)}>{category}</button>)}
+      </div>
+      {selectedCategory!=='all'&&subcategoryNames.length>0&&<>
+        <strong style={{display:'block',marginTop:16,marginBottom:10}}>Subcategories</strong>
+        <div style={filterRow}>
+          <button className={`btn ${selectedSubcategory==='all'?'btnPrimary':'btnSoft'}`} style={filterButton} onClick={()=>setSelectedSubcategory('all')}>All</button>
+          {subcategoryNames.map(subcategory=><button key={subcategory} className={`btn ${selectedSubcategory===subcategory?'btnPrimary':'btnSoft'}`} style={filterButton} onClick={()=>setSelectedSubcategory(subcategory)}>{subcategory}</button>)}
+        </div>
+      </>}
+      <small style={{display:'block',color:'var(--muted)',marginTop:12}}>{menuItems.length} item{menuItems.length===1?'':'s'} shown · same browsing order as the website</small>
+    </div>
+    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
+    {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match the selected website section{query?` and “${query}”`:''}.</div>}
   </>;
 }
