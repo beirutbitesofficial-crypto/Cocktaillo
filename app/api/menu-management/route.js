@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUser, allow } from '../../../lib/auth.js';
 import { mutateState } from '../../../lib/store.js';
 import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
+import { cleanupMenuTaxonomy, normalizeMenuLocation } from '../../../lib/menu-taxonomy.js';
 
 const menuKey=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 
@@ -18,15 +19,16 @@ export async function POST(request){
         const input=b.item||{};
         let item=input.id?state.menu.find(x=>x.id===input.id&&!x.deleted):null;
         if(!input.name_en||!input.name_ar||!input.category)throw new Error('English name, Arabic name and category are required.');
-        if(!state.categories.includes(input.category))state.categories.push(input.category);
-        if(input.subcategory&&!state.subcategories.includes(input.subcategory))state.subcategories.push(input.subcategory);
+        const location=normalizeMenuLocation(input.category,input.subcategory);
+        if(!state.categories.includes(location.category))state.categories.push(location.category);
+        if(location.subcategory&&!state.subcategories.includes(location.subcategory))state.subcategories.push(location.subcategory);
         if(!item){item={id:`item-${crypto.randomUUID()}`,sort_order:state.menu.length+1};state.menu.push(item)}
-        const station=input.category==='Hookah'?'hookah':['bar','kitchen','service'].includes(input.station)?input.station:'bar';
+        const station=location.category==='Hookah'?'hookah':['bar','kitchen','service'].includes(input.station)?input.station:'bar';
         Object.assign(item,{
           name_en:String(input.name_en).trim(),
           name_ar:String(input.name_ar).trim(),
-          category:String(input.category),
-          subcategory:String(input.subcategory||''),
+          category:location.category,
+          subcategory:location.subcategory,
           price_cents:Math.round(Number(input.price_usd||0)*100),
           station,
           allow_addons:Boolean(input.allow_addons),
@@ -36,6 +38,7 @@ export async function POST(request){
         });
         const key=menuKey(item.name_en);
         state.deleted_website_menu_names=state.deleted_website_menu_names.filter(x=>x!==key);
+        cleanupMenuTaxonomy(state);
         ensureDefaultRecipes(state);
         state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_saved',item_id:item.id,user:user.name,at:now});
         return {item};
@@ -51,6 +54,7 @@ export async function POST(request){
         item.deleted_at=now;
         item.deleted_by=user.name;
         state.recipes=(state.recipes||[]).filter(r=>r.menu_item_id!==item.id);
+        cleanupMenuTaxonomy(state);
         state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_deleted',item_id:item.id,item_name:item.name_en,user:user.name,at:now});
         return {ok:true,id:item.id};
       }

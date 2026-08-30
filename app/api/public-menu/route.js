@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readState } from '../../../lib/store.js';
 import { dedupeMenuItems } from '../../../lib/menu-dedupe.js';
+import { normalizeMenuLocation } from '../../../lib/menu-taxonomy.js';
 
 const slug=value=>String(value||'menu').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'menu';
 
@@ -18,17 +19,20 @@ export async function GET(){
       price_usd:Math.round((Math.max(0,Number(addon.price_lbp||0))/exchangeRate)*100)/100
     }));
   const items=dedupeMenuItems((state.menu||[]).filter(item=>!item.deleted&&item.available!==false))
-    .map(item=>({
-      id:String(item.id),
-      name:String(item.name_en||''),
-      name_ar:String(item.name_ar||''),
-      category:String(item.category||'Menu'),
-      subcategory:String(item.subcategory||''),
-      price:Number(item.price_cents||0)/100,
-      allow_addons:Boolean(item.allow_addons),
-      best_seller:Boolean(item.best_seller),
-      sort_order:Number(item.sort_order||0)
-    }))
+    .map(item=>{
+      const location=normalizeMenuLocation(item.category,item.subcategory);
+      return {
+        id:String(item.id),
+        name:String(item.name_en||''),
+        name_ar:String(item.name_ar||''),
+        category:location.category,
+        subcategory:location.subcategory,
+        price:Number(item.price_cents||0)/100,
+        allow_addons:Boolean(item.allow_addons),
+        best_seller:Boolean(item.best_seller),
+        sort_order:Number(item.sort_order||0)
+      };
+    })
     .sort((a,b)=>Number(b.best_seller)-Number(a.best_seller)||a.sort_order-b.sort_order||a.name.localeCompare(b.name));
 
   const grouped=new Map();
