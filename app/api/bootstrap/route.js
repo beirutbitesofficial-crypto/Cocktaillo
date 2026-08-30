@@ -4,12 +4,13 @@ import { readState, mutateState, publicUser, publicSettings, orderTotal, orderCo
 import { fetchCocktailloWebsiteMenu, mergeCocktailloWebsiteMenu, COCKTAILLO_MENU_SOURCE } from '../../../lib/alqaima-menu.js';
 import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
 import { dedupeMenuItems } from '../../../lib/menu-dedupe.js';
+import { cleanupMenuTaxonomy } from '../../../lib/menu-taxonomy.js';
 
 let catalogPrepared=false;
 async function ensureCatalogPrepared(){
   if(catalogPrepared)return;
   await mutateState(state=>{
-    for(const item of state.menu||[])if(item.category==='Hookah'&&!item.deleted)item.station='hookah';
+    cleanupMenuTaxonomy(state);
     ensureDefaultRecipes(state);
   });
   catalogPrepared=true;
@@ -25,7 +26,7 @@ async function ensureWebsiteMenu(user){
     await mutateState(state=>{
       if(state.website_menu_synced_at)return;
       const merged=mergeCocktailloWebsiteMenu(state,items);
-      for(const item of state.menu||[])if(item.category==='Hookah'&&!item.deleted)item.station='hookah';
+      cleanupMenuTaxonomy(state);
       ensureDefaultRecipes(state);
       state.website_menu_synced_at=new Date().toISOString();
       state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'website_menu_synced',source:COCKTAILLO_MENU_SOURCE,added:merged.added,updated:merged.updated,total:merged.total,user:user.name,at:state.website_menu_synced_at});
