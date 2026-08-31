@@ -31,8 +31,6 @@ export async function POST(request){
   try{
     const result=await mutateState(state=>{
       state.orders=Array.isArray(state.orders)?state.orders:[];
-      state.tickets=Array.isArray(state.tickets)?state.tickets:[];
-      state.print_jobs=Array.isArray(state.print_jobs)?state.print_jobs:[];
       state.audit=Array.isArray(state.audit)?state.audit:[];
 
       const existing=state.orders.find(order=>order.website_order_id===externalId);
@@ -62,6 +60,8 @@ export async function POST(request){
         created_by_name:'Website',
         source:'website',
         website_order_id:externalId,
+        website_confirmed_at:null,
+        website_confirmed_by:null,
         status:'pending_payment',
         created_at:now,
         updated_at:now,
@@ -69,7 +69,6 @@ export async function POST(request){
         payments:[]
       };
 
-      const stationLines={bar:[],kitchen:[],hookah:[]};
       for(const raw of body.lines){
         const item=state.menu.find(menuItem=>menuItem.id===String(raw.menu_item_id||'')&&menuItem.available!==false&&!menuItem.deleted);
         const quantity=Math.max(1,Math.min(50,Math.floor(Number(raw.quantity||1))));
@@ -85,81 +84,16 @@ export async function POST(request){
         if(item.allow_addons&&selected.length!==addonInputs.length)throw new Error('One or more website add-ons are no longer available.');
 
         const station=item.category==='Hookah'?'hookah':['bar','kitchen','service','hookah'].includes(item.station)?item.station:'bar';
-        const line={
-          id:`line-${crypto.randomUUID()}`,
-          menu_item_id:item.id,
-          name_en:item.name_en,
-          name_ar:item.name_ar,
-          price_cents:item.price_cents,
-          station,
-          quantity,
-          addons:selected,
-          note:text(raw.note,400)
-        };
-        order.lines.push(line);
-        if(stationLines[station])stationLines[station].push(line);
+        order.lines.push({id:`line-${crypto.randomUUID()}`,menu_item_id:item.id,name_en:item.name_en,name_ar:item.name_ar,price_cents:item.price_cents,station,quantity,addons:selected,note:text(raw.note,400)});
       }
 
       const deliveryFeeCents=type==='delivery'?Math.max(0,Math.min(100000,Math.round(Number(body.delivery_fee_cents||0)))):0;
       if(deliveryFeeCents>0){
-        order.lines.push({
-          id:`line-${crypto.randomUUID()}`,
-          menu_item_id:null,
-          name_en:'Delivery Fee',
-          name_ar:'رسوم التوصيل',
-          price_cents:deliveryFeeCents,
-          station:'service',
-          quantity:1,
-          addons:[],
-          note:'Website delivery charge'
-        });
+        order.lines.push({id:`line-${crypto.randomUUID()}`,menu_item_id:null,name_en:'Delivery Fee',name_ar:'رسوم التوصيل',price_cents:deliveryFeeCents,station:'service',quantity:1,addons:[],note:'Website delivery charge'});
       }
 
       state.orders.push(order);
-
-      for(const station of ['bar','kitchen','hookah'])if(stationLines[station].length){
-        const ticket={
-          id:`ticket-${crypto.randomUUID()}`,
-          order_id:order.id,
-          order_number:order.number,
-          table_id:null,
-          station,
-          status:'new',
-          kind:'NEW',
-          created_at:now,
-          staff_name:'Website',
-          source:'website',
-          lines:stationLines[station].map(line=>({
-            name_en:line.name_en,
-            name_ar:line.name_ar,
-            quantity:line.quantity,
-            addons:line.addons.map(addon=>({name_en:addon.name_en,name_ar:addon.name_ar,quantity:addon.quantity})),
-            note:line.note
-          }))
-        };
-        state.tickets.push(ticket);
-        if(station==='bar'||station==='hookah'){
-          const printerName=station==='hookah'?state.settings.hookah_printer_name||'HOOKAH':state.settings.bar_printer_name||'Bar Printer';
-          state.print_jobs.push({
-            id:`print-${crypto.randomUUID()}`,
-            ticket_id:ticket.id,
-            order_id:order.id,
-            order_number:order.number,
-            destination:station,
-            mode:'automatic',
-            status:'pending',
-            printer_name:printerName,
-            created_at:now,
-            updated_at:now,
-            attempts:0,
-            last_error:null,
-            printed_at:null,
-            requested_by:'Website'
-          });
-        }
-      }
-
-      state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'website_order_received',order_id:order.id,order_number:order.number,external_id:externalId,user:'Website',at:now});
+      state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'website_order_received_pending_confirmation',order_id:order.id,order_number:order.number,external_id:externalId,user:'Website',at:now});
       return {order:{...order,totals:orderTotal(order,state.settings.exchange_rate)},duplicate:false};
     });
 
