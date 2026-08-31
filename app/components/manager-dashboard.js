@@ -4,6 +4,7 @@ import {PageHeader,Stat,usd} from './ui.js';
 export default function ManagerDashboard({data}){
   const reports=data.reports||{};
   const orders=Array.isArray(data.orders)?data.orders:[];
+  const onlineSummary=data.online_orders_summary||{};
   const tables=Array.isArray(data.tables)?data.tables:[];
   const shifts=Array.isArray(data.shifts)?data.shifts:[];
   const tickets=Array.isArray(data.tickets)?data.tickets:[];
@@ -22,6 +23,12 @@ export default function ManagerDashboard({data}){
       <Stat label="Orders" value={reports.orders||0}/>
       <Stat label="Net profit" value={`$${Number(reports.net_profit||0).toFixed(2)}`}/>
       <Stat label="Occupied tables" value={`${openTables} / ${tables.length}`}/>
+    </div>
+    <div className="cards section">
+      <Stat label="Online orders" value={Number(onlineSummary.total||0)}/>
+      <Stat label="Pending online" value={Number(onlineSummary.pending||0)}/>
+      <Stat label="Online delivery" value={Number(onlineSummary.delivery||0)}/>
+      <Stat label="Online takeaway" value={Number(onlineSummary.takeaway||0)}/>
     </div>
     <div className="cards section">
       <Stat label="Inventory value" value={`$${Number(reports.inventory_value||0).toFixed(2)}`}/>
