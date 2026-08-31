@@ -54,7 +54,7 @@ export default function WebsiteOrderNotifier({data,reload}){
       {error&&<div style={{marginTop:10,padding:9,borderRadius:10,background:'#fef2f2',color:'#b91c1c',fontSize:12,fontWeight:700}}>{error}</div>}
       <div style={{display:'flex',gap:8,marginTop:12}}>
         <button type="button" onClick={()=>setExpanded(value=>!value)} style={{flex:1,border:'1px solid rgba(0,0,0,.15)',background:'transparent',borderRadius:11,padding:'10px 12px',fontWeight:800,cursor:'pointer'}}>{expanded?'Hide details':'View details'}</button>
-        <button type="button" disabled={busy} onClick={confirm} style={{flex:1.35,border:0,background:'#166534',color:'#fff',borderRadius:11,padding:'10px 12px',fontWeight:900,cursor:busy?'wait':'pointer',opacity:busy?.7:1}}>{busy?'Confirming…':'Confirm & Print'}</button>
+        <button type="button" disabled={busy} onClick={confirm} style={{flex:1.35,border:0,background:'#166534',color:'#fff',borderRadius:11,padding:'10px 12px',fontWeight:900,cursor:busy?'wait':'pointer',opacity:busy?0.7:1}}>{busy?'Confirming…':'Confirm & Print'}</button>
       </div>
       <div style={{fontSize:11,color:'var(--muted,#6b7280)',marginTop:9,textAlign:'center'}}>You can keep using the POS. Nothing prints until Confirm.</div>
     </div>
