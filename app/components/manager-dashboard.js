@@ -4,16 +4,13 @@ import {PageHeader,Stat,usd} from './ui.js';
 export default function ManagerDashboard({data}){
   const reports=data.reports||{};
   const orders=Array.isArray(data.orders)?data.orders:[];
+  const onlineSummary=data.online_orders_summary||{};
   const tables=Array.isArray(data.tables)?data.tables:[];
   const shifts=Array.isArray(data.shifts)?data.shifts:[];
   const tickets=Array.isArray(data.tickets)?data.tickets:[];
   const inventory=Array.isArray(data.inventory)?data.inventory:[];
   const menu=Array.isArray(data.menu_all)?data.menu_all:(Array.isArray(data.menu)?data.menu:[]);
   const openTables=orders.filter(order=>order.type==='table'&&order.status==='open').length;
-  const onlineOrders=orders.filter(order=>order.source==='website');
-  const pendingOnline=onlineOrders.filter(order=>order.status==='pending_payment'&&!order.website_confirmed_at).length;
-  const deliveryOnline=onlineOrders.filter(order=>order.type==='delivery').length;
-  const takeawayOnline=onlineOrders.filter(order=>order.type==='takeaway').length;
   const salesRanking=menu
     .map(item=>({...item,units_sold:Math.max(0,Number(item.units_sold||0))}))
     .sort((a,b)=>b.units_sold-a.units_sold||Number(Boolean(b.best_seller))-Number(Boolean(a.best_seller))||String(a.name_en||'').localeCompare(String(b.name_en||'')));
@@ -28,10 +25,10 @@ export default function ManagerDashboard({data}){
       <Stat label="Occupied tables" value={`${openTables} / ${tables.length}`}/>
     </div>
     <div className="cards section">
-      <Stat label="Online orders" value={onlineOrders.length}/>
-      <Stat label="Pending online" value={pendingOnline}/>
-      <Stat label="Online delivery" value={deliveryOnline}/>
-      <Stat label="Online takeaway" value={takeawayOnline}/>
+      <Stat label="Online orders" value={Number(onlineSummary.total||0)}/>
+      <Stat label="Pending online" value={Number(onlineSummary.pending||0)}/>
+      <Stat label="Online delivery" value={Number(onlineSummary.delivery||0)}/>
+      <Stat label="Online takeaway" value={Number(onlineSummary.takeaway||0)}/>
     </div>
     <div className="cards section">
       <Stat label="Inventory value" value={`$${Number(reports.inventory_value||0).toFixed(2)}`}/>
