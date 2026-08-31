@@ -10,6 +10,10 @@ export default function ManagerDashboard({data}){
   const inventory=Array.isArray(data.inventory)?data.inventory:[];
   const menu=Array.isArray(data.menu_all)?data.menu_all:(Array.isArray(data.menu)?data.menu:[]);
   const openTables=orders.filter(order=>order.type==='table'&&order.status==='open').length;
+  const onlineOrders=orders.filter(order=>order.source==='website');
+  const pendingOnline=onlineOrders.filter(order=>order.status==='pending_payment'&&!order.website_confirmed_at).length;
+  const deliveryOnline=onlineOrders.filter(order=>order.type==='delivery').length;
+  const takeawayOnline=onlineOrders.filter(order=>order.type==='takeaway').length;
   const salesRanking=menu
     .map(item=>({...item,units_sold:Math.max(0,Number(item.units_sold||0))}))
     .sort((a,b)=>b.units_sold-a.units_sold||Number(Boolean(b.best_seller))-Number(Boolean(a.best_seller))||String(a.name_en||'').localeCompare(String(b.name_en||'')));
@@ -22,6 +26,12 @@ export default function ManagerDashboard({data}){
       <Stat label="Orders" value={reports.orders||0}/>
       <Stat label="Net profit" value={`$${Number(reports.net_profit||0).toFixed(2)}`}/>
       <Stat label="Occupied tables" value={`${openTables} / ${tables.length}`}/>
+    </div>
+    <div className="cards section">
+      <Stat label="Online orders" value={onlineOrders.length}/>
+      <Stat label="Pending online" value={pendingOnline}/>
+      <Stat label="Online delivery" value={deliveryOnline}/>
+      <Stat label="Online takeaway" value={takeawayOnline}/>
     </div>
     <div className="cards section">
       <Stat label="Inventory value" value={`$${Number(reports.inventory_value||0).toFixed(2)}`}/>
