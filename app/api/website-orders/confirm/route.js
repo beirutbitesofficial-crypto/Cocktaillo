@@ -100,10 +100,10 @@ export async function POST(request){
         }
       }
 
-      const existingCustomerJob=state.print_jobs.find(job=>job.order_id===order.id&&job.destination==='customer'&&job.mode==='website-confirmation');
+      const existingCustomerJob=state.print_jobs.find(job=>job.order_id===order.id&&job.destination==='customer'&&job.website_order_confirmation===true);
       if(!existingCustomerJob){
         const receipt_snapshot=customerSnapshot(state,order,user,now);
-        state.print_jobs.push({id:`print-${crypto.randomUUID()}`,receipt_id:null,receipt_snapshot,order_id:order.id,order_number:order.number,destination:'customer',mode:'website-confirmation',open_drawer:false,status:'pending',printer_name:state.settings.customer_printer_name||'Customer Receipt',created_at:now,updated_at:now,attempts:0,last_error:null,printed_at:null,next_attempt_at:null,requested_by:user.name});
+        state.print_jobs.push({id:`print-${crypto.randomUUID()}`,receipt_id:null,receipt_snapshot,website_order_confirmation:true,order_id:order.id,order_number:order.number,destination:'customer',mode:'prebill',open_drawer:false,status:'pending',printer_name:state.settings.customer_printer_name||'Customer Receipt',created_at:now,updated_at:now,attempts:0,last_error:null,printed_at:null,next_attempt_at:null,requested_by:user.name});
       }
 
       order.website_confirmed_at=now;
