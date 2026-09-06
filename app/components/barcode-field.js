@@ -1,12 +1,13 @@
 'use client';
 import {useEffect,useId,useRef,useState} from 'react';
 
-export default function BarcodeField({value,onChange,label='Barcode'}){
+export default function BarcodeField({value,onChange,label='Scan Product Code',focusRequestKey=0}){
   const [open,setOpen]=useState(false);
   const [status,setStatus]=useState('');
   const reactId=useId();
   const readerId=useRef(`product-reader-${reactId.replace(/:/g,'')}`);
   const scanner=useRef(null);
+  const inputRef=useRef(null);
 
   async function start(){
     setOpen(true);setStatus('Starting camera…');
@@ -33,12 +34,18 @@ export default function BarcodeField({value,onChange,label='Barcode'}){
     setOpen(false);
   }
 
+  useEffect(()=>{
+    if(!focusRequestKey)return;
+    const timer=setTimeout(()=>{inputRef.current?.focus();inputRef.current?.select()},120);
+    return()=>clearTimeout(timer);
+  },[focusRequestKey]);
+
   useEffect(()=>()=>{const instance=scanner.current;if(instance){instance.stop().catch(()=>{}).finally(()=>instance.clear().catch(()=>{}))}},[]);
 
-  return <div className="field barcodeField">
+  return <div className="field barcodeField barcodeFieldPrimary">
     <label>{label}</label>
-    <div className="barcodeFieldRow"><input className="input" value={value||''} onChange={e=>onChange(e.target.value.replace(/\s+/g,''))} placeholder="Scan with USB scanner or type barcode" inputMode="numeric"/><button type="button" className="btn btnSoft" onClick={start}>Camera</button></div>
-    <small>USB scanners can scan directly into this field. Camera scanning works from a phone or tablet.</small>
-    {open&&<div className="modalBackdrop"><div className="modal barcodeCameraModal"><strong>Scan Product Barcode</strong><div id={readerId.current} className="phoneCamera"/><div className="barcodeStatus">{status}</div><button type="button" className="btn btnSoft" onClick={()=>void stop()}>Cancel</button></div></div>}
+    <div className="barcodeFieldRow"><input ref={inputRef} className="input" value={value||''} onChange={e=>onChange(e.target.value.replace(/\s+/g,''))} placeholder="Click here, then scan with the barcode machine" inputMode="numeric" autoComplete="off"/><button type="button" className="btn btnPrimary" onClick={start}>📷 Scan Code</button></div>
+    <small>{value?`Current code: ${value} · Scan again to replace it.`:'Scan with the USB barcode machine, or tap Scan Code to use the phone/tablet camera. The code fills in automatically.'}</small>
+    {open&&<div className="modalBackdrop"><div className="modal barcodeCameraModal"><strong>Scan Product Code</strong><div id={readerId.current} className="phoneCamera"/><div className="barcodeStatus">{status}</div><button type="button" className="btn btnSoft" onClick={()=>void stop()}>Cancel</button></div></div>}
   </div>;
 }
