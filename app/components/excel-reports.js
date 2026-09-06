@@ -34,7 +34,7 @@ export default function ExcelReports({reload}){
 }
 
 function RecoveryPreview({preview,busy,onRestore,restoreInventory}){
-  const m=preview.missing||{},w=preview.workbook||{},nothing=![m.orders,m.refunds,m.item_units,m.expenses,m.purchases,m.shifts].some(Number);
+  const m=preview.missing||{},w=preview.workbook||{},nothing=![m.orders,m.refunds,m.item_units,m.expenses,m.purchases,m.shifts].some(Number)&&!(restoreInventory&&Number(w.inventory||0)>0);
   return <div style={{marginTop:16}}>
     <div className="cards">
       <Mini label="Missing orders" value={m.orders||0} sub={`of ${w.orders||0} in workbook`}/>
