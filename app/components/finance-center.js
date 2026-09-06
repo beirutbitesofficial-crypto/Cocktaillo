@@ -21,21 +21,26 @@ export default function FinanceCenter({data}){
   const calc=useMemo(()=>{
     const paid=data.orders.filter(o=>o.status==='paid'&&inPeriod(o.paid_at||o.created_at,period,selectedDate));
     const refunded=data.orders.filter(o=>o.status==='refunded'&&inPeriod(o.paid_at||o.created_at,period,selectedDate));
-    const gross=paid.reduce((s,o)=>s+(o.totals?.total_equivalent_cents||0),0);
-    const refunds=refunded.reduce((s,o)=>s+(o.totals?.total_equivalent_cents||0),0);
-    const cogs=paid.reduce((s,o)=>s+o.lines.reduce((a,l)=>a+recipeCost(data,l.menu_item_id)*Number(l.quantity||0),0),0);
+    const recoveredOrders=(data.excel_recovery?.orders||[]).filter(o=>inPeriod(o.date,period,selectedDate));
+    const recoveredRefunds=(data.excel_recovery?.refunds||[]).filter(r=>inPeriod(r.date,period,selectedDate));
+    const gross=paid.reduce((s,o)=>s+(o.totals?.total_equivalent_cents||0),0)+recoveredOrders.reduce((s,o)=>s+Math.round(Number(o.sales_usd||0)*100),0);
+    const refunds=refunded.reduce((s,o)=>s+(o.totals?.total_equivalent_cents||0),0)+recoveredRefunds.reduce((s,r)=>s+Math.round(Number(r.amount_usd||0)*100),0);
+    const cogs=paid.reduce((s,o)=>s+o.lines.reduce((a,l)=>a+recipeCost(data,l.menu_item_id)*Number(l.quantity||0),0),0)+recoveredOrders.reduce((s,o)=>s+Number(o.cogs_usd||0),0);
     const expenses=(data.expenses||[]).filter(e=>inPeriod(e.date||e.created_at,period,selectedDate));
     const expUsd=expenses.reduce((s,e)=>s+(e.currency==='LBP'?Number(e.amount||0)/rate:Number(e.amount||0)),0);
     const payments=paid.reduce((a,o)=>{const p=o.payments?.[0]||{};a.usd+=Number(p.usd_cents||0)/100;a.lbp+=Number(p.lbp||0);return a},{usd:0,lbp:0});
+    for(const o of recoveredOrders){payments.usd+=Number(o.paid_usd||0);payments.lbp+=Number(o.paid_lbp||0)}
     const netSales=(gross-refunds)/100,grossProfit=netSales-cogs,netProfit=grossProfit-expUsd;
     const shifts=(data.shifts||[]).filter(s=>inPeriod(s.opened_at,period,selectedDate));
-    return {paid,refunded,gross,refunds,cogs,expenses,expUsd,payments,netSales,grossProfit,netProfit,shifts};
+    return {paid,refunded,recoveredOrders,recoveredRefunds,gross,refunds,cogs,expenses,expUsd,payments,netSales,grossProfit,netProfit,shifts,orderCount:paid.length+recoveredOrders.length};
   },[data,period,selectedDate,rate]);
   const margin=calc.netSales?calc.grossProfit/calc.netSales*100:0;
   const audit=(data.audit||[]).filter(a=>inPeriod(a.at,period,selectedDate)).slice(0,50);
+  const recoveryCount=(data.excel_recovery?.orders||[]).length;
 
   return <>
     <PageHeader title="Finance & Audit" sub="Choose any date from the calendar and review daily, monthly or yearly sales, costs, expenses and cash variances."/>
+    {recoveryCount>0&&<div className="card" style={{marginBottom:12,borderColor:'var(--accent)'}}><strong>Excel recovery active</strong><p style={{margin:'6px 0 0',color:'var(--muted)'}}>{recoveryCount} missing historical order{recoveryCount===1?'':'s'} restored from Cocktaillo Excel reports are included automatically in Finance and Dashboard totals.</p></div>}
     <div className="card" style={{marginBottom:12}}>
       <div className="modeTabs" style={{marginBottom:12}}>{['daily','monthly','yearly'].map(p=><button key={p} className={period===p?'active':''} onClick={()=>setPeriod(p)}>{p[0].toUpperCase()+p.slice(1)}</button>)}</div>
       <div style={{display:'flex',alignItems:'end',gap:8,flexWrap:'wrap'}}>
@@ -46,7 +51,7 @@ export default function FinanceCenter({data}){
         <strong style={{padding:'10px 0'}}>{periodLabel(period,selectedDate)}</strong>
       </div>
     </div>
-    <div className="cards section"><Stat label="Gross sales" value={usd(calc.gross)}/><Stat label="Refunds" value={usd(calc.refunds)}/><Stat label="Net sales" value={`$${calc.netSales.toFixed(2)}`}/><Stat label="Orders" value={calc.paid.length}/></div>
+    <div className="cards section"><Stat label="Gross sales" value={usd(calc.gross)}/><Stat label="Refunds" value={usd(calc.refunds)}/><Stat label="Net sales" value={`$${calc.netSales.toFixed(2)}`}/><Stat label="Orders" value={calc.orderCount}/></div>
     <div className="cards section"><Stat label="COGS" value={`$${calc.cogs.toFixed(2)}`}/><Stat label="Gross profit" value={`$${calc.grossProfit.toFixed(2)}`}/><Stat label="Expenses" value={`$${calc.expUsd.toFixed(2)}`}/><Stat label="Net profit" value={`$${calc.netProfit.toFixed(2)}`}/></div>
     <div className="cards section"><Stat label="Gross margin" value={`${margin.toFixed(1)}%`}/><Stat label="Paid USD" value={`$${calc.payments.usd.toFixed(2)}`}/><Stat label="Paid LBP" value={`${fmt(calc.payments.lbp)} LBP`}/><Stat label="Inventory value" value={`$${(data.inventory||[]).reduce((s,i)=>s+Number(i.quantity||0)*Number(i.unit_cost||0),0).toFixed(2)}`}/></div>
     <div className="card section"><h3>Cash reconciliation — {periodLabel(period,selectedDate)}</h3><div className="list">{calc.shifts.slice().reverse().map(s=><div className="listRow" key={s.id}><div className="grow"><strong>{s.user_name}</strong><small style={{display:'block'}}>{s.status} · {new Date(s.opened_at).toLocaleString()}</small></div><div style={{textAlign:'right'}}><strong>{s.status==='closed'?`USD ${Number(s.variance_usd||0)>=0?'+':''}${Number(s.variance_usd||0).toFixed(2)}`:'Open'}</strong>{s.status==='closed'&&<small style={{display:'block'}}>LBP {fmt(s.variance_lbp||0)}</small>}</div></div>)}{!calc.shifts.length&&<p style={{color:'var(--muted)'}}>No shifts in this period.</p>}</div></div>
