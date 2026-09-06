@@ -1,10 +1,9 @@
 'use client';
 import {useState} from 'react';
 import {Input,PageHeader,post,usd} from './ui.js';
-import BarcodeField from './barcode-field.js';
 
 export default function MenuAdmin({data,reload}){
-  const empty={name_en:'',name_ar:'',category:data.categories?.[0]||'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',barcode:'',station:'bar',allow_addons:false,available:true};
+  const empty={name_en:'',name_ar:'',category:data.categories?.[0]||'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',station:'bar',allow_addons:false,available:true};
   const[item,setItem]=useState(empty);
   const[query,setQuery]=useState('');
   const[selectedCategory,setSelectedCategory]=useState('all');
@@ -12,7 +11,6 @@ export default function MenuAdmin({data,reload}){
   const[newCategory,setNewCategory]=useState('');
   const[syncing,setSyncing]=useState(false);
   const[saving,setSaving]=useState(false);
-  const[barcodeFocusKey,setBarcodeFocusKey]=useState(0);
   const editing=Boolean(item.id);
   const isManager=data.user?.role==='manager';
   const search=query.trim().toLowerCase();
@@ -32,13 +30,13 @@ export default function MenuAdmin({data,reload}){
   ));
   const menuItems=categoryMenu
     .filter(i=>selectedSubcategory==='all'||String(i.subcategory||'')===selectedSubcategory)
-    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory,i.barcode].some(value=>String(value||'').toLowerCase().includes(search)));
+    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory].some(value=>String(value||'').toLowerCase().includes(search)));
 
   function selectCategory(category){
     setSelectedCategory(category);
     setSelectedSubcategory('all');
   }
-  function edit(i,focusBarcode=false){
+  function edit(i){
     setItem({
       id:i.id,
       name_en:i.name_en||'',
@@ -46,18 +44,11 @@ export default function MenuAdmin({data,reload}){
       category:i.category||data.categories?.[0]||'Dessert',
       subcategory:typeof i.subcategory==='string'?i.subcategory:'',
       price_usd:((Number(i.price_cents)||0)/100).toFixed(2),
-      barcode:i.barcode||'',
       station:['bar','kitchen','service','hookah'].includes(i.station)?i.station:'bar',
       allow_addons:Boolean(i.allow_addons),
       available:i.available!==false,
       sort_order:i.sort_order
     });
-    if(focusBarcode)setBarcodeFocusKey(key=>key+1);
-    window.scrollTo({top:0,behavior:'smooth'});
-  }
-  function newProduct(){
-    setItem(empty);
-    setBarcodeFocusKey(key=>key+1);
     window.scrollTo({top:0,behavior:'smooth'});
   }
   function cancel(){setItem(empty)}
@@ -91,35 +82,23 @@ export default function MenuAdmin({data,reload}){
   const filterRow={display:'flex',gap:8,overflowX:'auto',paddingBottom:4,WebkitOverflowScrolling:'touch'};
   const filterButton={whiteSpace:'nowrap',borderRadius:999,flex:'0 0 auto'};
   return <>
-    <PageHeader title="Menu Management" sub="Scan the product code first, then enter the product details and save."/>
+    <PageHeader title="Menu Management" sub="Website-matched category, subcategory and item order for fast POS ↔ website checking."/>
     {isManager&&<div className="card" style={{marginBottom:12}}><strong>Add Category</strong><small style={{display:'block',color:'var(--muted)',marginTop:4,marginBottom:10}}>Create a new category and use it immediately for menu items.</small><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Category name" value={newCategory} onChange={setNewCategory}/></div><button className="btn btnPrimary" onClick={addCategory}>Add Category</button></div></div>}
     {isManager&&<div className="card" style={{marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><strong>Website menu sync</strong><small style={{display:'block',color:'var(--muted)',marginTop:4}}>Import the same Cocktaillo website menu items and prices without deleting POS history. Items you delete in the POS stay deleted on future syncs.</small></div><button className="btn btnSoft" disabled={syncing} onClick={syncWebsite}>{syncing?'Syncing…':'Sync from website'}</button></div>}
-
-    <div className="card productEditorCard">
-      <div className="productEditorHead">
-        <div><strong>{editing?`Edit Product · ${item.name_en||'Unnamed'}`:'Add Product'}</strong><small>{editing?'Scan a code to assign or replace the barcode, then update any details you need.':'1. Scan the code  2. Enter the details  3. Save the product'}</small></div>
-        {editing?<button className="btn btnSoft" onClick={newProduct}>＋ Add New Product</button>:<span className="pill">NEW PRODUCT</span>}
-      </div>
-      <div className="productBarcodeStep">
-        <span className="stepBadge">1</span>
-        <BarcodeField value={item.barcode||''} onChange={barcode=>setItem({...item,barcode})} focusRequestKey={barcodeFocusKey}/>
-      </div>
-      <div className="productDetailsStep"><span className="stepBadge">2</span><strong>Product Details</strong></div>
-      <div className="formGrid">
-        <Input label="English name" value={item.name_en} onChange={v=>setItem({...item,name_en:v})}/>
-        <Input label="Arabic name" value={item.name_ar} onChange={v=>setItem({...item,name_ar:v})}/>
-        <select className="input" value={item.category} onChange={e=>setItem({...item,category:e.target.value,station:e.target.value==='Hookah'?'hookah':item.station})}>{data.categories.map(c=><option key={c}>{c}</option>)}</select>
-        <select className="input" value={item.subcategory} onChange={e=>setItem({...item,subcategory:e.target.value})}>{(data.subcategories||[]).map(c=><option key={c}>{c}</option>)}</select>
-        <Input label="Price USD" type="number" value={item.price_usd} onChange={v=>setItem({...item,price_usd:v})}/>
-        <div className="field"><label>Production route</label><select className="input" value={item.station} onChange={e=>setItem({...item,station:e.target.value})} disabled={item.category==='Hookah'}><option value="bar">Bar</option><option value="kitchen">Kitchen</option><option value="service">Service — no production ticket</option><option value="hookah">Hookah printer</option></select>{item.category==='Hookah'&&<small style={{display:'block',color:'var(--muted)',marginTop:4}}>Hookah always prints separately in Arabic on the Hookah printer and never on the Bar printer.</small>}</div>
-        <button className="btn btnSoft" onClick={()=>setItem({...item,allow_addons:!item.allow_addons})}>Add-ons: {item.allow_addons?'Enabled':'Disabled'}</button>
-        <button className="btn btnSoft" onClick={()=>setItem({...item,available:!item.available})}>Availability: {item.available?'Available':'Unavailable'}</button>
-      </div>
-      <div className="productSaveRow"><span className="stepBadge">3</span><button className="btn btnPrimary" disabled={saving} onClick={saveItem}>{saving?'Saving…':editing?'Save Product Changes':'Save New Product'}</button>{editing&&<button className="btn btnSoft" disabled={saving} onClick={cancel}>Cancel Edit</button>}</div>
+    <div className="card formGrid">
+      <Input label="English name" value={item.name_en} onChange={v=>setItem({...item,name_en:v})}/>
+      <Input label="Arabic name" value={item.name_ar} onChange={v=>setItem({...item,name_ar:v})}/>
+      <select className="input" value={item.category} onChange={e=>setItem({...item,category:e.target.value,station:e.target.value==='Hookah'?'hookah':item.station})}>{data.categories.map(c=><option key={c}>{c}</option>)}</select>
+      <select className="input" value={item.subcategory} onChange={e=>setItem({...item,subcategory:e.target.value})}>{(data.subcategories||[]).map(c=><option key={c}>{c}</option>)}</select>
+      <Input label="Price USD" type="number" value={item.price_usd} onChange={v=>setItem({...item,price_usd:v})}/>
+      <div className="field"><label>Production route</label><select className="input" value={item.station} onChange={e=>setItem({...item,station:e.target.value})} disabled={item.category==='Hookah'}><option value="bar">Bar</option><option value="kitchen">Kitchen</option><option value="service">Service — no production ticket</option><option value="hookah">Hookah printer</option></select>{item.category==='Hookah'&&<small style={{display:'block',color:'var(--muted)',marginTop:4}}>Hookah always prints separately in Arabic on the Hookah printer and never on the Bar printer.</small>}</div>
+      <button className="btn btnSoft" onClick={()=>setItem({...item,allow_addons:!item.allow_addons})}>Add-ons: {item.allow_addons?'Enabled':'Disabled'}</button>
+      <button className="btn btnSoft" onClick={()=>setItem({...item,available:!item.available})}>Availability: {item.available?'Available':'Unavailable'}</button>
+      <button className="btn btnPrimary" disabled={saving} onClick={saveItem}>{saving?'Saving…':editing?'Save changes':'Add menu item'}</button>
+      {editing&&<button className="btn btnSoft" disabled={saving} onClick={cancel}>Cancel edit</button>}
     </div>
-
     <div className="card" style={{marginTop:12}}>
-      <Input label="Search menu" value={query} onChange={setQuery} placeholder="Search by name, category, subcategory or barcode"/>
+      <Input label="Search menu" value={query} onChange={setQuery} placeholder="Search by English/Arabic name, category or subcategory"/>
       <small style={{display:'block',color:'var(--muted)',marginTop:8}}>Website order is used below: main categories first, then each category's subcategories and menu items in the same sequence. ★ Best Seller follows the same priority as the website.</small>
     </div>
     <div className="card" style={{marginTop:12}}>
@@ -137,7 +116,7 @@ export default function MenuAdmin({data,reload}){
       </>}
       <small style={{display:'block',color:'var(--muted)',marginTop:12}}>{menuItems.length} item{menuItems.length===1?'':'s'} shown · same browsing order as the website</small>
     </div>
-    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small className={i.barcode?'barcodeAssigned':'barcodeMissing'}>{i.barcode?`Barcode: ${i.barcode}`:'⚠ No barcode assigned'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnPrimary" style={{width:'100%',marginTop:8}} onClick={()=>edit(i,true)}>{i.barcode?'Scan / Change Code':'Scan Code'}</button><button className="btn btnSoft" style={{width:'100%',marginTop:6}} onClick={()=>edit(i,false)}>Edit Details</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
+    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
     {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match the selected website section{query?` and “${query}”`:''}.</div>}
   </>;
 }

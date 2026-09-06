@@ -5,7 +5,6 @@ import { ensureDefaultRecipes } from '../../../lib/recipe-templates.js';
 import { cleanupMenuTaxonomy, normalizeMenuLocation } from '../../../lib/menu-taxonomy.js';
 
 const menuKey=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-const barcodeKey=value=>String(value||'').trim().replace(/\s+/g,'');
 
 export async function POST(request){
   const user=await getUser();
@@ -20,11 +19,6 @@ export async function POST(request){
         const input=b.item||{};
         let item=input.id?state.menu.find(x=>x.id===input.id&&!x.deleted):null;
         if(!input.name_en||!input.name_ar||!input.category)throw new Error('English name, Arabic name and category are required.');
-        const barcode=barcodeKey(input.barcode);
-        if(barcode){
-          const duplicate=state.menu.find(x=>!x.deleted&&x.id!==input.id&&barcodeKey(x.barcode)===barcode);
-          if(duplicate)throw new Error(`Barcode ${barcode} is already assigned to ${duplicate.name_en}.`);
-        }
         const location=normalizeMenuLocation(input.category,input.subcategory);
         if(!state.categories.includes(location.category))state.categories.push(location.category);
         if(location.subcategory&&!state.subcategories.includes(location.subcategory))state.subcategories.push(location.subcategory);
@@ -36,7 +30,6 @@ export async function POST(request){
           category:location.category,
           subcategory:location.subcategory,
           price_cents:Math.round(Number(input.price_usd||0)*100),
-          barcode,
           station,
           allow_addons:Boolean(input.allow_addons),
           available:input.available!==false,
@@ -47,7 +40,7 @@ export async function POST(request){
         state.deleted_website_menu_names=state.deleted_website_menu_names.filter(x=>x!==key);
         cleanupMenuTaxonomy(state);
         ensureDefaultRecipes(state);
-        state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_saved',item_id:item.id,barcode:item.barcode||'',user:user.name,at:now});
+        state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'menu_item_saved',item_id:item.id,user:user.name,at:now});
         return {item};
       }
       if(b.action==='delete_menu_item'){
