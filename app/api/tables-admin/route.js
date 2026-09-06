@@ -13,7 +13,6 @@ export async function POST(request){
       if(b.action==='save_table'){
         const input=b.table||{};
         const editingExisting=Boolean(input.id);
-        if(user.role==='waiter'&&editingExisting)throw new Error('Waiters can add tables but cannot edit existing tables.');
         let table=editingExisting?state.tables.find(t=>t.id===input.id):null;
         if(editingExisting&&!table)throw new Error('Table not found.');
         const name=String(input.name||'').trim();
@@ -27,12 +26,11 @@ export async function POST(request){
         return {table};
       }
       if(b.action==='delete_table'){
-        if(user.role==='waiter')throw new Error('Waiters cannot delete tables.');
         const table=state.tables.find(t=>t.id===b.id);
         if(!table)throw new Error('Table not found.');
         if(state.orders.some(o=>o.type==='table'&&o.table_id===table.id&&o.status==='open'))throw new Error('Cannot delete an occupied table.');
         state.tables=state.tables.filter(t=>t.id!==table.id);
-        state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'table_deleted',table_id:table.id,table_name:table.name,user:user.name,at:now});
+        state.audit.push({id:`audit-${crypto.randomUUID()}`,type:'table_deleted',table_id:table.id,table_name:table.name,user:user.name,role:user.role,at:now});
         return {ok:true};
       }
       throw new Error('Unknown table setup action.');
