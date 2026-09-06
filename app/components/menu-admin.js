@@ -1,9 +1,10 @@
 'use client';
 import {useState} from 'react';
 import {Input,PageHeader,post,usd} from './ui.js';
+import BarcodeField from './barcode-field.js';
 
 export default function MenuAdmin({data,reload}){
-  const empty={name_en:'',name_ar:'',category:data.categories?.[0]||'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',station:'bar',allow_addons:false,available:true};
+  const empty={name_en:'',name_ar:'',category:data.categories?.[0]||'Dessert',subcategory:data.subcategories?.[0]||'Crepe',price_usd:'',barcode:'',station:'bar',allow_addons:false,available:true};
   const[item,setItem]=useState(empty);
   const[query,setQuery]=useState('');
   const[selectedCategory,setSelectedCategory]=useState('all');
@@ -30,7 +31,7 @@ export default function MenuAdmin({data,reload}){
   ));
   const menuItems=categoryMenu
     .filter(i=>selectedSubcategory==='all'||String(i.subcategory||'')===selectedSubcategory)
-    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory].some(value=>String(value||'').toLowerCase().includes(search)));
+    .filter(i=>!search||[i.name_en,i.name_ar,i.category,i.subcategory,i.barcode].some(value=>String(value||'').toLowerCase().includes(search)));
 
   function selectCategory(category){
     setSelectedCategory(category);
@@ -44,6 +45,7 @@ export default function MenuAdmin({data,reload}){
       category:i.category||data.categories?.[0]||'Dessert',
       subcategory:typeof i.subcategory==='string'?i.subcategory:'',
       price_usd:((Number(i.price_cents)||0)/100).toFixed(2),
+      barcode:i.barcode||'',
       station:['bar','kitchen','service','hookah'].includes(i.station)?i.station:'bar',
       allow_addons:Boolean(i.allow_addons),
       available:i.available!==false,
@@ -91,6 +93,7 @@ export default function MenuAdmin({data,reload}){
       <select className="input" value={item.category} onChange={e=>setItem({...item,category:e.target.value,station:e.target.value==='Hookah'?'hookah':item.station})}>{data.categories.map(c=><option key={c}>{c}</option>)}</select>
       <select className="input" value={item.subcategory} onChange={e=>setItem({...item,subcategory:e.target.value})}>{(data.subcategories||[]).map(c=><option key={c}>{c}</option>)}</select>
       <Input label="Price USD" type="number" value={item.price_usd} onChange={v=>setItem({...item,price_usd:v})}/>
+      <BarcodeField value={item.barcode||''} onChange={barcode=>setItem({...item,barcode})}/>
       <div className="field"><label>Production route</label><select className="input" value={item.station} onChange={e=>setItem({...item,station:e.target.value})} disabled={item.category==='Hookah'}><option value="bar">Bar</option><option value="kitchen">Kitchen</option><option value="service">Service — no production ticket</option><option value="hookah">Hookah printer</option></select>{item.category==='Hookah'&&<small style={{display:'block',color:'var(--muted)',marginTop:4}}>Hookah always prints separately in Arabic on the Hookah printer and never on the Bar printer.</small>}</div>
       <button className="btn btnSoft" onClick={()=>setItem({...item,allow_addons:!item.allow_addons})}>Add-ons: {item.allow_addons?'Enabled':'Disabled'}</button>
       <button className="btn btnSoft" onClick={()=>setItem({...item,available:!item.available})}>Availability: {item.available?'Available':'Unavailable'}</button>
@@ -98,7 +101,7 @@ export default function MenuAdmin({data,reload}){
       {editing&&<button className="btn btnSoft" disabled={saving} onClick={cancel}>Cancel edit</button>}
     </div>
     <div className="card" style={{marginTop:12}}>
-      <Input label="Search menu" value={query} onChange={setQuery} placeholder="Search by English/Arabic name, category or subcategory"/>
+      <Input label="Search menu" value={query} onChange={setQuery} placeholder="Search by name, category, subcategory or barcode"/>
       <small style={{display:'block',color:'var(--muted)',marginTop:8}}>Website order is used below: main categories first, then each category's subcategories and menu items in the same sequence. ★ Best Seller follows the same priority as the website.</small>
     </div>
     <div className="card" style={{marginTop:12}}>
@@ -116,7 +119,7 @@ export default function MenuAdmin({data,reload}){
       </>}
       <small style={{display:'block',color:'var(--muted)',marginTop:12}}>{menuItems.length} item{menuItems.length===1?'':'s'} shown · same browsing order as the website</small>
     </div>
-    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
+    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{i.barcode?`Barcode: ${i.barcode}`:'No barcode assigned'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
     {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match the selected website section{query?` and “${query}”`:''}.</div>}
   </>;
 }
