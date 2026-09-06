@@ -1,10 +1,11 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 
 export default function BarcodeField({value,onChange,label='Barcode'}){
   const [open,setOpen]=useState(false);
   const [status,setStatus]=useState('');
-  const readerId=useRef(`product-reader-${Math.random().toString(36).slice(2)}`);
+  const reactId=useId();
+  const readerId=useRef(`product-reader-${reactId.replace(/:/g,'')}`);
   const scanner=useRef(null);
 
   async function start(){
