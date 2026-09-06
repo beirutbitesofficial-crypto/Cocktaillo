@@ -47,11 +47,10 @@ export default function TableAdmin({data,reload}){
     }catch(e){alert(e.message)}finally{setBusy(false)}
   }
 
-  const canAddTables=['waiter','cashier','manager'].includes(data.user.role);
-  const canManageTables=data.user.role==='manager'||data.user.role==='cashier';
+  const canManageTables=['waiter','cashier','manager'].includes(data.user.role);
   return <>
-    <PageHeader title="Table Setup" sub="Add tables and move open checks safely: available destination = transfer, occupied destination = merge."/>
-    {canAddTables&&<div className="card formGrid">
+    <PageHeader title="Table Setup" sub="Add, edit, delete and move tables. Occupied tables cannot be deleted."/>
+    {canManageTables&&<div className="card formGrid">
       <Input label="Table name" value={name} onChange={setName}/>
       <Input label="Capacity" value={capacity} onChange={setCapacity}/>
       <button disabled={busy||!name.trim()} className="btn btnPrimary" onClick={()=>save()}>Add table</button>
