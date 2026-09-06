@@ -47,13 +47,13 @@ export default function TableAdmin({data,reload}){
     }catch(e){alert(e.message)}finally{setBusy(false)}
   }
 
-  const canManageTables=data.user.role==='manager'||data.user.role==='cashier';
+  const canManageTables=['waiter','cashier','manager'].includes(data.user.role);
   return <>
-    <PageHeader title="Table Setup" sub="Move open checks safely: available destination = transfer, occupied destination = merge."/>
+    <PageHeader title="Table Setup" sub="Add, edit, delete and move tables. Occupied tables cannot be deleted."/>
     {canManageTables&&<div className="card formGrid">
       <Input label="Table name" value={name} onChange={setName}/>
       <Input label="Capacity" value={capacity} onChange={setCapacity}/>
-      <button disabled={busy} className="btn btnPrimary" onClick={()=>save()}>Add table</button>
+      <button disabled={busy||!name.trim()} className="btn btnPrimary" onClick={()=>save()}>Add table</button>
     </div>}
     <div className="section list">{data.tables.map(t=>{const order=openOrderFor(t.id);return <div className="listRow" key={t.id}>
       <div className="grow"><strong>{t.name}</strong><small style={{display:'block'}}>{t.capacity} seats · {order?`Occupied · Order #${order.number}`:'Available'}</small></div>
