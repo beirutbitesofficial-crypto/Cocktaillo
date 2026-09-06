@@ -1,8 +1,9 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 
 export default function PhoneBarcodeScanner({token}){
-  const readerId=useRef(`reader-${Math.random().toString(36).slice(2)}`);
+  const reactId=useId();
+  const readerId=useRef(`reader-${reactId.replace(/:/g,'')}`);
   const scanner=useRef(null);
   const [status,setStatus]=useState('Tap Start Camera to scan products.');
   const [running,setRunning]=useState(false);
