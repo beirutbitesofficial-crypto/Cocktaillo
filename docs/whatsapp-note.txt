@@ -1,0 +1,1 @@
+Shift closing remains successful if WhatsApp delivery is unavailable; delivery failure is logged for retry/diagnosis.
