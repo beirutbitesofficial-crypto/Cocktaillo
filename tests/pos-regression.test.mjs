@@ -41,7 +41,7 @@ test('Arabic category sits immediately below each production item',()=>{
  const shisha=buildArabicTicketDocument({station:'hookah',lines:[{name_ar:'تفاحتين فاخر',quantity:1}]}).blocks.filter(b=>b.type==='text').map(b=>b.text);
  assert.equal(shisha[shisha.indexOf('1 × تفاحتين فاخر')+1],'شيشة');
 });
-test('separate server processes retain two waiter submissions and deduplicate retries',{timeout:30000},async()=>{
+test('server ownership keeps one waiter on a table and deduplicates retries',{timeout:30000},async()=>{
  const folder=await mkdtemp(join(tmpdir(),'cocktaillo-regression-'));
  process.env.POS_DATA_FILE=join(folder,'pos.json');
  const {mutateState,readState}=await import('../lib/store.js');
@@ -49,9 +49,10 @@ test('separate server processes retain two waiter submissions and deduplicate re
   await mutateState(s=>{s.users.push({id:'cashier',role:'cashier',active:true});s.shifts.push({id:'active',user_id:'cashier',status:'open'});s.menu.push({id:'test-oreo',name_en:'Oreo',name_ar:'أوريو',category:'Cold Beverage',subcategory:'Frappe',station:'bar',price_cents:700,available:true});});
   const source=`import {mutateState} from './lib/store.js';import {createOrder} from './lib/create-order.js';const user={id:process.env.TEST_WAITER,name:process.env.TEST_WAITER,role:'waiter'};await mutateState(s=>createOrder(s,user,{request_id:process.env.TEST_REQUEST,type:'table',table_id:'table-1',lines:[{menu_item_id:'test-oreo',quantity:1}]}));`;
   const send=(user,id)=>new Promise((resolve,reject)=>{const child=spawn(process.execPath,['--input-type=module','-e',source],{cwd:process.cwd(),env:{...process.env,TEST_WAITER:user,TEST_REQUEST:id}});let err='';child.stderr.on('data',d=>err+=d);child.on('error',reject);child.on('exit',code=>code?reject(Error(err)):resolve())});
-  await Promise.all([send('waiter-1','request-1'),send('waiter-2','request-2'),send('waiter-1','request-1')]);
-  let s=await readState();assert.equal(s.orders.length,1);assert.equal(s.orders[0].lines.length,2);assert.equal(s.tickets.length,2);assert.equal(s.print_jobs.length,2);assert.equal(new Set(s.print_jobs.map(j=>j.id)).size,2);assert.equal(s.order_requests.length,2);
-  assert.ok(s.tickets.every(t=>t.lines[0].category_ar==='فرابيه'));
-  await send('waiter-1','request-1');s=await readState();assert.equal(s.orders[0].lines.length,2);
+  await Promise.all([send('waiter-1','request-1'),send('waiter-1','request-1')]);
+  await assert.rejects(()=>send('waiter-2','request-2'),/already assigned to another waiter/);
+  let s=await readState();assert.equal(s.orders.length,1);assert.equal(s.orders[0].created_by,'waiter-1');assert.equal(s.orders[0].lines.length,1);assert.equal(s.tickets.length,1);assert.equal(s.print_jobs.length,1);assert.equal(s.order_requests.length,1);
+  assert.equal(s.tickets[0].lines[0].category_ar,'فرابيه');
+  await send('waiter-1','request-1');s=await readState();assert.equal(s.orders[0].lines.length,1);assert.equal(s.tickets.length,1);
  }finally{await rm(folder,{recursive:true,force:true})}
 });
