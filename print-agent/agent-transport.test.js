@@ -13,7 +13,7 @@ const rawHelper=read('print-raw.ps1');
 const arabicRenderer=read('arabic-ticket.js');
 const printClient=fs.readFileSync(path.join(__dirname,'..','app','components','print-client.js'),'utf8');
 const printJobsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','print-jobs','route.js'),'utf8');
-const ordersRoute=fs.readFileSync(path.join(__dirname,'..','app','api','orders','route.js'),'utf8');
+const ordersRoute=fs.readFileSync(path.join(__dirname,'..','lib','create-order.js'),'utf8');
 const settingsPanel=fs.readFileSync(path.join(__dirname,'..','app','components','settings-panel.js'),'utf8');
 const store=fs.readFileSync(path.join(__dirname,'..','lib','store.js'),'utf8');
 const actionsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','actions','route.js'),'utf8');
@@ -59,7 +59,7 @@ test('paid receipt drawer policy is preserved from checkout to both agent entry 
   assert.ok(printClient.includes("open_drawer:bundle.job?.open_drawer===true"));
   for(const source of [standalone,server]){
     assert.ok(source.includes("receiptEscpos(b.receipt||{},{openDrawer:destination==='customer'&&b.open_drawer===true})"));
-    assert.ok(source.includes("version:'2.5.0'"));
+    assert.ok(source.includes("version:'2.6.0'"));
   }
 });
 
@@ -74,7 +74,7 @@ test('Hookah lines are isolated from Bar and routed to the exact HOOKAH printer'
   assert.ok(printJobsRoute.includes("x==='bar'||x==='hookah'||x==='customer'"));
   assert.ok(printClient.includes("DEFAULT_HOOKAH_PRINTER='HOOKAH'"));
   assert.ok(printClient.includes("destination==='hookah'?settings.hookahPrinter"));
-  assert.ok(settingsPanel.includes('<label>Hookah printer</label>'));
+  assert.ok(settingsPanel.includes('<label>Shisha printer</label>'));
   assert.ok(printClient.includes("if(!['bar','hookah','customer'].includes(destination))"));
   assert.ok(printJobsRoute.includes("if(job.destination!=='customer')throw new Error('Unsupported print destination.')"));
   assert.ok(actionsRoute.includes("destination:'hookah'"));

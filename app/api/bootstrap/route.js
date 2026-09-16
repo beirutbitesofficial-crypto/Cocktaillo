@@ -1,3 +1,4 @@
+import {waiterOrder} from '../../../lib/menu-labels.js';
 import { NextResponse } from 'next/server';
 import { getUser } from '../../../lib/auth.js';
 import { readState, mutateState, publicUser, publicSettings, orderTotal } from '../../../lib/store.js';
@@ -77,7 +78,7 @@ export async function GET(){
   const onlineAll=s.orders.filter(order=>order.source==='website');
   const online_orders_summary={total:onlineAll.length,pending:onlineAll.filter(order=>order.status==='pending_payment'&&!order.website_confirmed_at).length,confirmed:onlineAll.filter(order=>Boolean(order.website_confirmed_at)).length,delivery:onlineAll.filter(order=>order.type==='delivery').length,takeaway:onlineAll.filter(order=>order.type==='takeaway').length};
   const activeCashierShift=s.shifts.find(sh=>sh.status==='open'&&s.users.some(u=>u.id===sh.user_id&&u.role==='cashier'&&u.active!==false));
-  const base={user,settings:publicSettings(s.settings),tables:s.tables,menu:visibleMenu.filter(x=>x.available),addons:s.addons.filter(x=>x.available),categories:s.categories,subcategories:s.subcategories||[],orders:user.role==='waiter'?openOrders:recentOrders,online_orders_summary,pos_open:Boolean(activeCashierShift),active_cashier:activeCashierShift?{id:activeCashierShift.user_id,name:activeCashierShift.user_name,opened_at:activeCashierShift.opened_at}:null};
+  const base={user,settings:publicSettings(s.settings),tables:s.tables,menu:visibleMenu.filter(x=>x.available),addons:s.addons.filter(x=>x.available),categories:s.categories,subcategories:s.subcategories||[],orders:user.role==='waiter'?openOrders.map(waiterOrder):recentOrders,online_orders_summary,pos_open:Boolean(activeCashierShift),active_cashier:activeCashierShift?{id:activeCashierShift.user_id,name:activeCashierShift.user_name,opened_at:activeCashierShift.opened_at}:null};
   if(user.role==='waiter')return NextResponse.json(base,{headers:{'Cache-Control':'no-store'}});
   if(user.role==='cashier')return NextResponse.json({...base,menu_all:visibleMenu,shifts:s.shifts.filter(x=>x.user_id===user.id),tickets:s.tickets,receipts:s.receipts.filter(r=>r.cashier===user.name).slice(-250).reverse(),print_jobs:(s.print_jobs||[]).filter(j=>j.requested_by===user.name||s.receipts.some(r=>r.id===j.receipt_id&&r.cashier===user.name)).slice(-500).reverse(),inventory:s.inventory,recipes:s.recipes},{headers:{'Cache-Control':'no-store'}});
 

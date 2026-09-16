@@ -1,3 +1,4 @@
+import {shiftCash} from '../../../lib/cash.js';
 import {NextResponse} from 'next/server';
 import {getUser,allow} from '../../../lib/auth.js';
 import {mutateState} from '../../../lib/store.js';
@@ -15,18 +16,12 @@ export async function POST(request){
       const shift=state.shifts.find(x=>x.user_id===user.id&&x.status==='open');
       if(!shift)throw new Error('No open shift.');
 
-      const receipts=state.receipts
-        .filter(r=>r.cashier===user.name&&r.created_at>=shift.opened_at)
-        .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
-      const cashUsd=receipts.reduce((sum,r)=>sum+Number(r.payment?.usd_cents||0)/100-Number(r.refund_payment?.usd_cents||0)/100,0);
-      const cashLbp=receipts.reduce((sum,r)=>sum+Number(r.payment?.lbp||0)-Number(r.refund_payment?.lbp||0),0);
-      const drawerUsd=state.expenses.filter(e=>e.paid_from==='cash_drawer'&&e.currency==='USD'&&e.created_at>=shift.opened_at).reduce((sum,e)=>sum+Number(e.amount||0),0);
-      const drawerLbp=state.expenses.filter(e=>e.paid_from==='cash_drawer'&&e.currency==='LBP'&&e.created_at>=shift.opened_at).reduce((sum,e)=>sum+Number(e.amount||0),0);
+      const cash=shiftCash(state,shift,now),receipts=cash.receipts;
       const closingUsd=nonNegativeNumber(b.closing_usd,'Closing USD');
       const closingLbp=nonNegativeNumber(b.closing_lbp,'Closing LBP');
 
-      shift.expected_usd=Number(shift.opening_usd||0)+cashUsd-drawerUsd;
-      shift.expected_lbp=Number(shift.opening_lbp||0)+cashLbp-drawerLbp;
+      shift.expected_usd=cash.expected_usd;
+      shift.expected_lbp=cash.expected_lbp;
       shift.status='closed';
       shift.closed_at=now;
       shift.closing_usd=closingUsd;
@@ -36,12 +31,12 @@ export async function POST(request){
 
       const orders=receipts.map(r=>{
         const total_cents=Number(r.totals?.total_equivalent_cents||0);
-        const refunded_cents=Math.max(0,Math.round(Number(r.refund_usd||0)*100));
+        const refunded_cents=cash.refunds.filter(f=>f.order_id===r.order_id).reduce((sum,f)=>sum+Number(f.amount_cents||0),0);
         return {number:r.number,total_cents,refunded_cents,net_cents:Math.max(0,total_cents-refunded_cents),created_at:r.created_at};
       });
       const gross_total_cents=orders.reduce((sum,o)=>sum+o.total_cents,0);
-      const refund_total_cents=orders.reduce((sum,o)=>sum+o.refunded_cents,0);
-      const net_total_cents=Math.max(0,gross_total_cents-refund_total_cents);
+      const refund_total_cents=cash.refunds.reduce((sum,r)=>sum+Number(r.amount_cents||0),0);
+      const net_total_cents=gross_total_cents-refund_total_cents;
 
       const receipt_snapshot={
         is_shift_report:true,
@@ -67,7 +62,7 @@ export async function POST(request){
         closing_lbp:Number(shift.closing_lbp||0),
         variance_usd:Number(shift.variance_usd||0),
         variance_lbp:Number(shift.variance_lbp||0),
-        items:orders.map(o=>({name:`Order #${o.number}${o.refunded_cents?' REFUND':''}`,quantity:1,unit_price_cents:o.net_cents,line_total_cents:o.net_cents,addons:[]})),
+        items:orders.map(o=>({name:`Order #${o.number}${o.refunded_cents?' REFUND':''}`,quantity:1,unit_price_cents:o.net_cents,line_total_cents:o.net_cents,addons:[]})).concat(cash.refunds.filter(r=>!receipts.some(sale=>sale.order_id===r.order_id)).map(r=>({name:`Refund #${r.order_number}`,quantity:1,unit_price_cents:-Number(r.amount_cents||0),line_total_cents:-Number(r.amount_cents||0),addons:[]}))),
         subtotal_cents:net_total_cents,
         discount_cents:0,
         total_cents:net_total_cents,

@@ -35,8 +35,8 @@ function ruleBlock(){return {type:'rule',top:7,bottom:7}}
 function buildArabicTicketDocument(ticket={}){
   const kind=cleanText(ticket.kind||'NEW').toUpperCase(),isVoid=kind==='VOID',isHookah=cleanText(ticket.station).toLowerCase()==='hookah',stamp=dateParts(ticket.created_at);
   const orderNumber=cleanText(ticket.order_number||'--'),staff=cleanText(ticket.staff_name||''),blocks=[];
-  blocks.push(textBlock(isVoid?(isHookah?'إلغاء طلب أراكيل':'إلغاء طلب البار'):(isHookah?'طلب أراكيل جديد':'طلب بار جديد'),{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
-  blocks.push(textBlock(isHookah?'كوكتايلو - الأراكيل':'كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
+  blocks.push(textBlock(isVoid?(isHookah?'إلغاء طلب شيشة':'إلغاء طلب البار'):(isHookah?'طلب شيشة جديد':'طلب بار جديد'),{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
+  blocks.push(textBlock(isHookah?'كوكتايلو - الشيشة':'كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
   blocks.push(textBlock('طلب رقم '+orderNumber,{size:36,bold:true,align:'center',top:5,bottom:2}));
   blocks.push(textBlock(arabicTableLabel(ticket.table),{size:38,bold:true,align:'center',top:2,bottom:6}));
   blocks.push(textBlock(stamp.date+'   '+stamp.time,{size:23,bold:true,align:'center',rtl:false,top:3,bottom:4}));
@@ -45,6 +45,8 @@ function buildArabicTicketDocument(ticket={}){
   for(const item of Array.isArray(ticket.lines)?ticket.lines:[]){
     const quantity=Math.max(1,Number(item.quantity||1)),name=cleanText(item.name_ar||item.name_en||'صنف');
     blocks.push(textBlock(quantity+' × '+name,{size:36,bold:true,top:8,bottom:6}));
+    const category=cleanText(item.category_ar||(isHookah?'شيشة':''));
+    if(category)blocks.push(textBlock(category,{size:25,top:0,bottom:6}));
     for(const addon of Array.isArray(item.addons)?item.addons:[]){
       const addonQty=Math.max(1,Number(addon.quantity||1)),addonName=cleanText(addon.name_ar||addon.name_en||'إضافة');
       blocks.push(textBlock('+ إضافة: '+addonName+' × '+addonQty,{size:27,bold:true,top:3,bottom:3,indent:20}));

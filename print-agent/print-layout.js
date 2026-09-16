@@ -94,7 +94,7 @@ function receiptEscpos(receipt={},options={}){
   for(const row of pairRows('Payment',receipt.payment_method||'-'))txt(row+'\n');
   if(Number(receipt.paid_usd_cents||0)>0)for(const row of pairRows('Paid USD',money(receipt.paid_usd_cents)))txt(row+'\n');
   if(Number(receipt.paid_lbp||0)>0){for(const row of pairRows('Paid LBP',lbp(receipt.paid_lbp)))txt(row+'\n');if(Number(receipt.exchange_rate||0)>0)for(const row of pairRows('Rate',lbp(receipt.exchange_rate)+' / USD'))txt(row+'\n')}
-  chunks.push(COMMAND.boldOn);for(const row of pairRows('CHANGE',money(receipt.change_cents)))txt(row+'\n');chunks.push(COMMAND.boldOff);
+  chunks.push(COMMAND.boldOn);for(const row of pairRows('CHANGE',receipt.change_payment?.lbp?lbp(receipt.change_payment.lbp):money(receipt.change_payment?.usd_cents??receipt.change_cents)))txt(row+'\n');chunks.push(COMMAND.boldOff);
   txt(rule('-')+'\n');chunks.push(COMMAND.center,COMMAND.boldOn);txt('SCAN & FOLLOW US\n');chunks.push(COMMAND.boldOff);
   if(receipt.instagram_url){chunks.push(qrCommands(receipt.instagram_url));txt('\n'+clean(receipt.instagram_handle||'@cocktaillorestocafe')+'\n')}
   txt(rule('-')+'\n');
