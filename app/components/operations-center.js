@@ -14,7 +14,7 @@ export default function OperationsCenter({data,reload}){
   async function action(payload){try{await post('/api/actions',{...payload,manager_pin:pin});setPin('');await reload();await refreshDaily()}catch(e){alert(e.message)}}
   async function doDiscount(){await action({action:'apply_discount',order_id:discount.order_id,discount_type:discount.type,value:discount.value});setDiscount({...discount,value:''})}
   async function voidOrder(o){const reason=prompt(`Void Order #${o.number}. Reason:`);if(reason)await action({action:'void_order',order_id:o.id,reason})}
-  async function refundOrder(o){const reason=prompt(`Refund Order #${o.number}. Reason:`);if(reason&&confirm(`Refund full order #${o.number}? Inventory recipe quantities will be restored.`))await action({action:'refund_order',order_id:o.id,reason})}
+  async function refundOrder(o){const reason=prompt(`Refund Order #${o.number}. Reason:`);if(!reason)return;const currency=prompt('Refund currency: USD or LBP','USD')?.trim().toUpperCase();if(!['USD','LBP'].includes(currency))return;if(confirm(`Refund full order #${o.number} in ${currency}? Inventory recipe quantities will be restored.`))await action({action:'refund_order',order_id:o.id,reason,refund_currency:currency})}
   async function mergeTables(){if(!merge.source||!merge.target||merge.source===merge.target)return alert('Choose two different occupied tables.');await action({action:'merge_tables',source_table_id:merge.source,target_table_id:merge.target});setMerge({source:'',target:''})}
   async function buy(){try{await post('/api/admin',{action:'purchase_stock',...purchase});setPurchase({inventory_id:'',quantity:'',unit_cost:'',supplier:'',invoice:'',note:''});await reload();await refreshDaily()}catch(e){alert(e.message)}}
   return <>

@@ -83,6 +83,7 @@ export async function POST(request){
             lines:stationLines[station].map(line=>({
               name_en:line.name_en,
               name_ar:line.name_ar,
+              menu_item_id:line.menu_item_id,category:line.category,subcategory:line.subcategory,category_ar:line.category_ar,
               quantity:line.quantity,
               addons:(line.addons||[]).map(addon=>({name_en:addon.name_en,name_ar:addon.name_ar,quantity:addon.quantity})),
               note:line.note||''

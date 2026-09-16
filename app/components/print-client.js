@@ -22,7 +22,7 @@ export function getPrintAgentSettings(serverSettings={}){
   if(typeof window==='undefined')return defaults;
   try{const saved=JSON.parse(window.localStorage.getItem(PRINT_AGENT_STORAGE_KEY)||'{}');return {...defaults,...saved,url:cleanUrl(saved.url||defaults.url)}}catch{return defaults}
 }
-function checkedSettings(input){const settings={...defaultsFromServer(),...(input||{})};settings.url=validateLoopbackUrl(settings.url);settings.token=String(settings.token||'').trim();settings.customerPrinter=String(settings.customerPrinter||DEFAULT_CUSTOMER_PRINTER).trim();settings.barPrinter=String(settings.barPrinter||DEFAULT_BAR_PRINTER).trim();settings.hookahPrinter=String(settings.hookahPrinter||DEFAULT_HOOKAH_PRINTER).trim();if(!settings.token)throw new Error('Paste the pairing token from the Windows Print Agent.');if(!settings.customerPrinter||!settings.barPrinter||!settings.hookahPrinter)throw new Error('Choose the customer, bar and Hookah printers.');return settings}
+function checkedSettings(input){const settings={...defaultsFromServer(),...(input||{})};settings.url=validateLoopbackUrl(settings.url);settings.token=String(settings.token||'').trim();settings.customerPrinter=String(settings.customerPrinter||DEFAULT_CUSTOMER_PRINTER).trim();settings.barPrinter=String(settings.barPrinter||DEFAULT_BAR_PRINTER).trim();settings.hookahPrinter=String(settings.hookahPrinter||DEFAULT_HOOKAH_PRINTER).trim();if(!settings.token)throw new Error('Paste the pairing token from the Windows Print Agent.');if(!settings.customerPrinter||!settings.barPrinter||!settings.hookahPrinter)throw new Error('Choose the customer, bar and Shisha printers.');return settings}
 export function savePrintAgentSettings(input){if(typeof window==='undefined')throw new Error('Printer setup is only available in the browser.');const settings=checkedSettings(input);window.localStorage.setItem(PRINT_AGENT_STORAGE_KEY,JSON.stringify(settings));lastPrinterCheckAt=0;lastDestinations=[];emit({status:'ready',message:'Local printer setup saved on this cashier computer.'});return settings}
 async function agentRequest(path,{method='GET',body=null,settings=null}={}){
   const config=checkedSettings(settings||getPrintAgentSettings());
@@ -50,50 +50,40 @@ async function agentPrint(bundle){
   const destination=bundle.job?.destination;
   if(!['bar','hookah','customer'].includes(destination))throw new Error('Unsupported print destination.');
   const printerName=destination==='bar'?settings.barPrinter:destination==='hookah'?settings.hookahPrinter:settings.customerPrinter;
-  const agentDestination=destination==='hookah'?'bar':destination; // Agent 2.4 compatibility: Bar and Hookah share the Arabic raster renderer; printerName still targets HOOKAH.
+  const agentDestination=destination==='hookah'?'bar':destination; // Agent 2.4 compatibility: Bar and Shisha share the Arabic raster renderer; printerName still targets HOOKAH.
   return agentRequest('/print',{method:'POST',settings,body:{job_id:bundle.job.id,destination:agentDestination,printer_name:printerName,receipt:bundle.receipt||null,ticket:bundle.ticket||null,open_drawer:bundle.job?.open_drawer===true}});
 }
 
 async function serverPost(body){const f=nativeFetch||fetch;const r=await f('/api/print-jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Print server HTTP ${r.status}`);return d}
-async function executeCustomerJob(bundle,{claimed=false}={}){
-  const {job,receipt,printer_name,should_print}=bundle;
-  if(!should_print){if(job?.status==='printed')emit({status:'printed',jobId:job.id,receiptId:job.receipt_id,message:`Receipt #${job.order_number} already printed.`});return bundle}
-  if(!claimed)await serverPost({action:'status',job_id:job.id,status:'printing'});
-  try{await agentPrint(bundle);await serverPost({action:'status',job_id:job.id,status:'printed'});emit({status:'printed',jobId:job.id,receiptId:job.receipt_id,message:`Customer receipt #${job.order_number} printed.`});return bundle}
-  catch(e){await serverPost({action:'status',job_id:job.id,status:'failed',error:e.message}).catch(()=>{});throw Object.assign(e,{jobId:job.id,receiptId:job.receipt_id})}
+async function executeJob(bundle,{claimed=false}={}){
+  if(!claimed)bundle=await serverPost({action:'claim',job_id:bundle.job.id});
+  if(!bundle.should_print)return bundle;
+  const job=bundle.job,claim={job_id:job.id,claim_token:job.claim_token};
+  const heartbeat=setInterval(()=>void serverPost({action:'heartbeat',...claim}).catch(()=>{}),10000);
+  try{await agentPrint(bundle);await serverPost({action:'status',...claim,status:'printed'});emit({status:'printed',jobId:job.id,message:`${job.destination==='hookah'?'Shisha':job.destination} #${job.order_number} printed.`});return bundle}
+  catch(e){await serverPost({action:'status',...claim,status:'failed',error:e.message}).catch(()=>{});emit({status:'failed',jobId:job.id,message:'Print job queued for retry',error:e.message});throw e}
+  finally{clearInterval(heartbeat)}
 }
 export async function autoPrintCustomerReceipt(receiptId){
   const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'automatic'});
-  const destinations=await availableDestinations();
-  if(!destinations.includes('customer')){emit({status:'queued',jobId:bundle.job?.id||null,receiptId,message:`Receipt #${bundle.job?.order_number||''} queued for cashier printer.`});return bundle}
-  try{return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||bundle.job?.id||null,receiptId,message:'Receipt printing failed on cashier device',error:e.message});throw e}
+  void processPrintQueue();return bundle;
 }
-export async function reprintCustomerReceipt(receiptId){
-  const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'reprint'});
-  const destinations=await availableDestinations(true);
-  if(!destinations.includes('customer')){emit({status:'queued',jobId:bundle.job?.id||null,receiptId,message:`Receipt #${bundle.job?.order_number||''} queued for cashier printer.`});return bundle}
-  return executeCustomerJob(bundle)
-}
+export async function reprintCustomerReceipt(receiptId){const bundle=await serverPost({action:'create',receipt_id:receiptId,mode:'reprint'});void processPrintQueue();return bundle}
 export async function retryPrintJob(jobId){
-  const bundle=await serverPost({action:'retry',job_id:jobId}),destinations=await availableDestinations(true),destination=bundle.job?.destination;
-  if(!destinations.includes(destination)){emit({status:'queued',jobId,message:'Print job is queued for the cashier Windows printer.'});return bundle}
-  try{if(destination==='bar'||destination==='hookah'){await agentPrint(bundle);await serverPost({action:'status',job_id:jobId,status:'printed'});return bundle}return await executeCustomerJob(bundle)}catch(e){emit({status:'failed',jobId:e.jobId||jobId,receiptId:e.receiptId||null,message:'Printing failed on cashier device',error:e.message});throw e}
+  const bundle=await serverPost({action:'retry',job_id:jobId}),destinations=await availableDestinations(true);
+  if(!destinations.includes(bundle.job?.destination)){emit({status:'queued',jobId,message:'Queued for the cashier Windows printer.'});return bundle}
+  return executeJob(bundle);
 }
 async function processPrintQueue(){
   if(workerBusy)return;
-  const destinations=await availableDestinations();
-  if(!destinations.length)return;
   workerBusy=true;
   try{
-    const bundle=await serverPost({action:'claim-next',destinations});
-    if(!bundle?.job)return;
-    try{
-      if(bundle.job.destination==='bar'||bundle.job.destination==='hookah'){
-        await agentPrint(bundle);
-        await serverPost({action:'status',job_id:bundle.job.id,status:'printed'});
-        emit({status:'printed',jobId:bundle.job.id,message:`${bundle.job.destination==='hookah'?'Hookah':'Bar'} ticket #${bundle.job.order_number} printed.`});
-      }else await executeCustomerJob(bundle,{claimed:true});
-    }catch(e){await serverPost({action:'status',job_id:bundle.job.id,status:'failed',error:e.message}).catch(()=>{});emit({status:'failed',jobId:bundle.job.id,message:`Print job #${bundle.job.order_number} queued for retry`,error:e.message})}
+    const destinations=await availableDestinations();if(!destinations.length)return;
+    // Drain a burst in one pass so simultaneous waiter tickets do not wait for a refresh.
+    for(let count=0;count<10;count++){
+      const bundle=await serverPost({action:'claim-next',destinations});if(!bundle?.job)break;
+      try{await executeJob(bundle,{claimed:true})}catch{}
+    }
   }catch{}finally{workerBusy=false}
 }
 export function startCentralPrintWorker(){

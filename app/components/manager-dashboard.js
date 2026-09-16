@@ -36,7 +36,7 @@ export default function ManagerDashboard({data}){
     <div className="cards section">
       <Stat label="Bar queue" value={barQueue}/>
       <Stat label="Kitchen queue" value={kitchenQueue}/>
-      <Stat label="Hookah queue" value={hookahQueue}/>
+      <Stat label="Shisha queue" value={hookahQueue}/>
       <Stat label="Pending online" value={Number(online.pending||0)}/>
     </div>
     <div className="cards section">

@@ -36,7 +36,7 @@ test('Arabic Bar document prefers Arabic item data and translates every producti
 
 test('Arabic Hookah document uses Hookah labels and keeps only its supplied order lines',()=>{
   const document=buildArabicTicketDocument({...fixture,station:'hookah',lines:[{name_en:'Two Apples',name_ar:'تفاحتين فاخر',quantity:1,addons:[],note:'خفيفة'}]}),text=textLines(document);
-  for(const marker of ['طلب أراكيل جديد','كوكتايلو - الأراكيل','1 × تفاحتين فاخر','ملاحظة: خفيفة','حضّر الطلب الآن']){
+  for(const marker of ['طلب شيشة جديد','كوكتايلو - الشيشة','1 × تفاحتين فاخر','ملاحظة: خفيفة','حضّر الطلب الآن']){
     assert.ok(text.includes(marker),'missing '+marker);
   }
   assert.ok(!text.includes('طلب بار جديد'));
@@ -55,7 +55,7 @@ test('Arabic Bar document keeps safe fallbacks and makes void tickets unmistakab
 
 test('Arabic Hookah void ticket is unmistakable',()=>{
   const document=buildArabicTicketDocument({station:'hookah',kind:'VOID',order_number:17,table:'Table 2',lines:[{name_ar:'ليمون ونعنع',quantity:1,addons:[],note:'إلغاء: الزبون غيّر رأيه'}]}),text=textLines(document);
-  for(const marker of ['إلغاء طلب أراكيل','كوكتايلو - الأراكيل','طلب رقم 17','طاولة 2','1 × ليمون ونعنع','ملاحظة: إلغاء: الزبون غيّر رأيه','لا تحضّر الطلب']){
+  for(const marker of ['إلغاء طلب شيشة','كوكتايلو - الشيشة','طلب رقم 17','طاولة 2','1 × ليمون ونعنع','ملاحظة: إلغاء: الزبون غيّر رأيه','لا تحضّر الطلب']){
     assert.ok(text.includes(marker),'missing '+marker);
   }
   assert.ok(!text.includes('إلغاء طلب البار'));

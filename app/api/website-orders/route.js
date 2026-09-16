@@ -1,3 +1,4 @@
+import {arabicCategory} from '../../../lib/menu-labels.js';
 import { NextResponse } from 'next/server';
 import { mutateState, orderTotal } from '../../../lib/store.js';
 
@@ -84,7 +85,7 @@ export async function POST(request){
         if(item.allow_addons&&selected.length!==addonInputs.length)throw new Error('One or more website add-ons are no longer available.');
 
         const station=item.category==='Hookah'?'hookah':['bar','kitchen','service','hookah'].includes(item.station)?item.station:'bar';
-        order.lines.push({id:`line-${crypto.randomUUID()}`,menu_item_id:item.id,name_en:item.name_en,name_ar:item.name_ar,price_cents:item.price_cents,station,quantity,addons:selected,note:text(raw.note,400)});
+        order.lines.push({id:`line-${crypto.randomUUID()}`,menu_item_id:item.id,name_en:item.name_en,name_ar:item.name_ar,category:item.category,subcategory:item.subcategory,category_ar:arabicCategory(item),price_cents:item.price_cents,station,quantity,addons:selected,note:text(raw.note,400)});
       }
 
       const deliveryFeeCents=type==='delivery'?Math.max(0,Math.min(100000,Math.round(Number(body.delivery_fee_cents||0)))):0;

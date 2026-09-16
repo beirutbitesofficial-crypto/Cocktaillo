@@ -1,4 +1,5 @@
 'use client';
+import {displayCategory} from '../../lib/menu-labels.js';
 import {useState} from 'react';
 import {Input,PageHeader,post,usd} from './ui.js';
 
@@ -88,10 +89,10 @@ export default function MenuAdmin({data,reload}){
     <div className="card formGrid">
       <Input label="English name" value={item.name_en} onChange={v=>setItem({...item,name_en:v})}/>
       <Input label="Arabic name" value={item.name_ar} onChange={v=>setItem({...item,name_ar:v})}/>
-      <select className="input" value={item.category} onChange={e=>setItem({...item,category:e.target.value,station:e.target.value==='Hookah'?'hookah':item.station})}>{data.categories.map(c=><option key={c}>{c}</option>)}</select>
-      <select className="input" value={item.subcategory} onChange={e=>setItem({...item,subcategory:e.target.value})}>{(data.subcategories||[]).map(c=><option key={c}>{c}</option>)}</select>
+      <select className="input" value={item.category} onChange={e=>setItem({...item,category:e.target.value,station:e.target.value==='Hookah'?'hookah':item.station})}>{data.categories.map(c=><option key={c} value={c}>{displayCategory(c)}</option>)}</select>
+      <select className="input" value={item.subcategory} onChange={e=>setItem({...item,subcategory:e.target.value})}>{(data.subcategories||[]).map(c=><option key={c} value={c}>{displayCategory(c)}</option>)}</select>
       <Input label="Price USD" type="number" value={item.price_usd} onChange={v=>setItem({...item,price_usd:v})}/>
-      <div className="field"><label>Production route</label><select className="input" value={item.station} onChange={e=>setItem({...item,station:e.target.value})} disabled={item.category==='Hookah'}><option value="bar">Bar</option><option value="kitchen">Kitchen</option><option value="service">Service — no production ticket</option><option value="hookah">Hookah printer</option></select>{item.category==='Hookah'&&<small style={{display:'block',color:'var(--muted)',marginTop:4}}>Hookah always prints separately in Arabic on the Hookah printer and never on the Bar printer.</small>}</div>
+      <div className="field"><label>Production route</label><select className="input" value={item.station} onChange={e=>setItem({...item,station:e.target.value})} disabled={item.category==='Hookah'}><option value="bar">Bar</option><option value="kitchen">Kitchen</option><option value="service">Service — no production ticket</option><option value="hookah">Shisha printer</option></select>{item.category==='Hookah'&&<small style={{display:'block',color:'var(--muted)',marginTop:4}}>Shisha always prints separately in Arabic on the Shisha printer and never on the Bar printer.</small>}</div>
       <button className="btn btnSoft" onClick={()=>setItem({...item,allow_addons:!item.allow_addons})}>Add-ons: {item.allow_addons?'Enabled':'Disabled'}</button>
       <button className="btn btnSoft" onClick={()=>setItem({...item,available:!item.available})}>Availability: {item.available?'Available':'Unavailable'}</button>
       <button className="btn btnPrimary" disabled={saving} onClick={saveItem}>{saving?'Saving…':editing?'Save changes':'Add menu item'}</button>
@@ -116,7 +117,7 @@ export default function MenuAdmin({data,reload}){
       </>}
       <small style={{display:'block',color:'var(--muted)',marginTop:12}}>{menuItems.length} item{menuItems.length===1?'':'s'} shown · same browsing order as the website</small>
     </div>
-    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{i.category} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Hookah':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
+    <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{displayCategory(i.category)} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Shisha':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
     {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match the selected website section{query?` and “${query}”`:''}.</div>}
   </>;
 }
