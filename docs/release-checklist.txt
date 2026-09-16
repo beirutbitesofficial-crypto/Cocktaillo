@@ -1,0 +1,1 @@
+CI must pass before merge. WhatsApp credentials must be configured on Hostinger for actual report delivery.
