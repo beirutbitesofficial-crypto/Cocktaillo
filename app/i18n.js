@@ -286,13 +286,36 @@ export function arabicUiText(value){
   return lead+translated+tail;
 }
 
+const originalText=new WeakMap();
+const originalAttrs=new WeakMap();
+
+function rememberText(node){
+  const current=node.nodeValue;
+  if(!originalText.has(node))originalText.set(node,current);
+  else{
+    const original=originalText.get(node),expected=arabicUiText(original);
+    if(current!==original&&current!==expected)originalText.set(node,current);
+  }
+}
+
+function rememberAttr(el,attr,current){
+  let saved=originalAttrs.get(el);
+  if(!saved){saved={};originalAttrs.set(el,saved)}
+  if(!(attr in saved))saved[attr]=current;
+  else{
+    const original=saved[attr],expected=arabicUiText(original);
+    if(current!==original&&current!==expected)saved[attr]=current;
+  }
+}
+
 function translateElement(el){
   if(!(el instanceof Element))return;
   if(el.closest('.thermalReceipt,.productionPrint'))return;
   for(const attr of ['placeholder','aria-label','title']){
     if(el.hasAttribute(attr)){
       const current=el.getAttribute(attr);
-      const translated=arabicUiText(current);
+      rememberAttr(el,attr,current);
+      const translated=arabicUiText(originalAttrs.get(el)[attr]);
       if(translated!==current)el.setAttribute(attr,translated);
     }
   }
@@ -307,7 +330,8 @@ export function translateArabicUi(root){
     if(node.nodeType===Node.TEXT_NODE){
       const parent=node.parentElement;
       if(parent&&!parent.closest('script,style,.thermalReceipt,.productionPrint')){
-        const translated=arabicUiText(node.nodeValue);
+        rememberText(node);
+        const translated=arabicUiText(originalText.get(node));
         if(translated!==node.nodeValue)node.nodeValue=translated;
       }
     }else translateElement(node);
@@ -324,13 +348,15 @@ export function observeArabicUi(root){
         const node=mutation.target;
         const parent=node.parentElement;
         if(parent&&!parent.closest('script,style,.thermalReceipt,.productionPrint')){
-          const translated=arabicUiText(node.nodeValue);
+          rememberText(node);
+          const translated=arabicUiText(originalText.get(node));
           if(translated!==node.nodeValue)node.nodeValue=translated;
         }
       }
       for(const added of mutation.addedNodes){
         if(added.nodeType===Node.TEXT_NODE){
-          const translated=arabicUiText(added.nodeValue);
+          rememberText(added);
+          const translated=arabicUiText(originalText.get(added));
           if(translated!==added.nodeValue)added.nodeValue=translated;
         }else if(added.nodeType===Node.ELEMENT_NODE)translateArabicUi(added);
       }
@@ -338,4 +364,28 @@ export function observeArabicUi(root){
   });
   observer.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label','title']});
   return()=>observer.disconnect();
+}
+
+
+export function restoreEnglishUi(root){
+  if(!root||typeof document==='undefined')return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT);
+  let node=walker.currentNode;
+  while(node){
+    if(node.nodeType===Node.TEXT_NODE){
+      if(originalText.has(node)){
+        node.nodeValue=originalText.get(node);
+        originalText.delete(node);
+      }
+    }else if(node instanceof Element){
+      const saved=originalAttrs.get(node);
+      if(saved){
+        for(const [attr,value] of Object.entries(saved)){
+          if(value===null)node.removeAttribute(attr);else node.setAttribute(attr,value);
+        }
+        originalAttrs.delete(node);
+      }
+    }
+    node=walker.nextNode();
+  }
 }
