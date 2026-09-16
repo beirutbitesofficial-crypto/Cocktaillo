@@ -1,0 +1,1 @@
+Manager WhatsApp destination is configured through MANAGER_WHATSAPP_NUMBER. Default: 9613384026.
