@@ -79,7 +79,7 @@ test('bar ticket makes order, items, add-ons and notes prominent without truncat
     kind:'NEW',order_number:1028,table:'Table 05',staff_name:'Mira',created_at:'2026-08-23T17:45:00.000Z',
     lines:[{name_en:'Fresh Cocktail Juice With Extra Long Description',quantity:2,addons:[{name_en:'Extra Strawberry',quantity:1}],note:'No ice and make it extra cold please'}],
   }),text=output.toString('latin1');
-  for(const marker of ['BAR TICKET','COCKTAILLO - BAR','ORDER #1028','TABLE 05','SENT BY: MIRA','2 x FRESH COCKTAIL','DESCRIPTION','+ ADD: EXTRA STRAWBERRY x1','*** NOTE ***','NO ICE AND MAKE IT EXTRA COLD','MAKE NOW'])assert.ok(text.includes(marker),`missing ${marker}`);
+  for(const marker of ['BAR TICKET','COCKTAILLO - BAR','ORDER #1028','TABLE 05','SENT BY: MIRA','2 x FRESH COCKTAIL','DESCRIPTION','+ ADD-ON: EXTRA STRAWBERRY x1','*** NOTE ***','NO ICE AND MAKE IT EXTRA COLD','MAKE NOW'])assert.ok(text.includes(marker),`missing ${marker}`);
   assert.ok(containsBytes(output,[0x1d,0x21,0x01]),'items should use double-height type');
   assert.ok(containsBytes(output,[0x1d,0x42,0x01]),'important blocks should use reverse print');
   assert.ok(containsBytes(output,[0x1d,0x56,0x00]),'missing cut command');
