@@ -110,7 +110,7 @@ function ticketEscpos(ticket={}){
   for(const item of ticket.lines||[]){
     const quantity=Math.max(1,Number(item.quantity||1)),name=(clean(item.name_en||item.name_ar||'Item')||'Item').toUpperCase();
     chunks.push(COMMAND.boldOn,COMMAND.doubleHeight);for(const line of wrap(`${quantity} x ${name}`,W))txt(line+'\n');chunks.push(COMMAND.normal,COMMAND.boldOff);
-    for(const addon of item.addons||[]){const addonQty=Math.max(1,Number(addon.quantity||1)),addonName=(clean(addon.name_en||addon.name_ar||'Add-on')||'Add-on').toUpperCase();chunks.push(COMMAND.boldOn);for(const line of wrap(`+ ADD: ${addonName} x${addonQty}`,W))txt(line+'\n');chunks.push(COMMAND.boldOff)}
+    for(const addon of item.addons||[]){const addonQty=Math.max(1,Number(addon.quantity||1)),addonName=(clean(addon.name_en||addon.name_ar||'Add-on')||'Add-on').toUpperCase();chunks.push(COMMAND.boldOn);for(const line of wrap(`+ ADD-ON: ${addonName} x${addonQty}`,W))txt(line+'\n');chunks.push(COMMAND.boldOff)}
     const note=clean(item.note||'');if(note){txt('\n');chunks.push(COMMAND.center,COMMAND.reverseOn,COMMAND.boldOn);txt('*** NOTE ***\n');chunks.push(COMMAND.reverseOff,COMMAND.left,COMMAND.doubleHeight);for(const line of wrap(note.toUpperCase(),W))txt(line+'\n');chunks.push(COMMAND.normal,COMMAND.boldOff);txt('\n')}
     txt(rule('-')+'\n');
   }
