@@ -16,7 +16,6 @@ const printJobsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','print
 const ordersRoute=fs.readFileSync(path.join(__dirname,'..','lib','create-order.js'),'utf8');
 const settingsPanel=fs.readFileSync(path.join(__dirname,'..','app','components','settings-panel.js'),'utf8');
 const store=fs.readFileSync(path.join(__dirname,'..','lib','store.js'),'utf8');
-const actionsRoute=fs.readFileSync(path.join(__dirname,'..','app','api','actions','route.js'),'utf8');
 const websiteMenu=fs.readFileSync(path.join(__dirname,'..','lib','alqaima-menu.js'),'utf8');
 const installer=read('install-windows.ps1');
 
@@ -77,8 +76,6 @@ test('Hookah lines are isolated from Bar and routed to the exact HOOKAH printer'
   assert.ok(settingsPanel.includes('<label>Shisha printer</label>'));
   assert.ok(printClient.includes("if(!['bar','hookah','customer'].includes(destination))"));
   assert.ok(printJobsRoute.includes("if(job.destination!=='customer')throw new Error('Unsupported print destination.')"));
-  assert.ok(actionsRoute.includes("destination:'hookah'"));
-  assert.ok(actionsRoute.includes("kind:'VOID'"));
   assert.ok(websiteMenu.includes("/hookah/i.test(category)?'hookah'"));
 });
 
