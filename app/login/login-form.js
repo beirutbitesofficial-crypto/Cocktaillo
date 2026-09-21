@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginForm(){
+export default function LoginForm({nextHref='/'}){
   const r=useRouter();
   const[username,setUsername]=useState('');
   const[password,setPassword]=useState('');
@@ -20,7 +20,7 @@ export default function LoginForm(){
       const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password}),signal:controller.signal});
       const data=await res.json().catch(()=>({}));
       if(!res.ok){setError(data.error||'Login failed. Please retry.');return}
-      r.replace('/');
+      r.replace(nextHref);
       r.refresh();
     }catch(err){
       setError(err?.name==='AbortError'?'Login server is not responding. Please retry.':'Could not reach the login server. Please retry.');

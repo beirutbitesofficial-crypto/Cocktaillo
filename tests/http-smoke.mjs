@@ -18,8 +18,8 @@ try{
  const c=(await post('/api/auth/login',{username:'cashier',password:'test-only'})).cookie;
  const w1=(await post('/api/auth/login',{username:'waiter1',password:'test-only'})).cookie;
  const w2=(await post('/api/auth/login',{username:'waiter2',password:'test-only'})).cookie;
- await post('/api/actions',{action:'open_shift',opening_usd:100,opening_lbp:0},c);
- const b={request_id:'a',type:'table',table_id:'table-1',lines:[{menu_item_id:'test-oreo',quantity:1}]};
+ const opened=await post('/api/actions',{action:'open_shift',opening_usd:100,opening_lbp:0},c);
+ const b={request_id:'a',type:'table',table_id:'table-1',lines:[{menu_item_id:'test-oreo',quantity:1,note:'without ice'}]};
  const first=await post('/api/orders',b,w1),retry=await post('/api/orders',b,w1);
  const id=first.d.order.id;assert.equal(retry.d.order.id,id);
  const blocked=await fetch(base+'/api/orders',{method:'POST',headers:{'Content-Type':'application/json',cookie:w2},body:JSON.stringify({...b,request_id:'b'})});
@@ -29,16 +29,33 @@ try{
  assert.ok(w1boot.tables.some(t=>t.id==='table-1'));assert.ok(w1boot.orders.some(o=>o.id===id));
  assert.ok(!w2boot.tables.some(t=>t.id==='table-1'));assert.ok(!w2boot.orders.some(o=>o.id===id));
  const claim=await post('/api/print-jobs',{action:'claim-next',destinations:['bar']},c);
- assert.equal(claim.d.ticket.lines[0].category_ar,'فرابيه');
+ assert.equal(claim.d.ticket.lines[0].category_ar,'فرابيه');assert.equal(claim.d.ticket.lines[0].note,'without ice');
  const j=claim.d.job;assert.equal((await post('/api/print-jobs',{action:'claim',job_id:j.id},c)).d.should_print,false);await post('/api/print-jobs',{action:'status',job_id:j.id,claim_token:j.claim_token,status:'printed'},c);
  assert.equal((await post('/api/print-jobs',{action:'claim-next',destinations:['bar']},c)).d.job,null);
  const pays=await Promise.all([post('/api/actions',{action:'pay_order',order_id:id,usd:20,lbp:0,change_currency:'USD'},c),post('/api/actions',{action:'pay_order',order_id:id,usd:20,lbp:0,change_currency:'USD'},c)]);
  assert.equal(pays[0].d.receipt.id,pays[1].d.receipt.id);
- const close=await post('/api/shift-close',{closing_usd:107,closing_lbp:0},c);assert.equal(close.d.shift.expected_usd,107);assert.equal(close.d.shift.variance_usd,0);
+ const paidPrint=await post('/api/print-jobs',{action:'claim-next',destinations:['customer']},c);assert.equal(paidPrint.d.job.receipt_id,pays[0].d.receipt.id);assert.equal(paidPrint.d.job.open_drawer,true);
+ await post('/api/print-jobs',{action:'status',job_id:paidPrint.d.job.id,claim_token:paidPrint.d.job.claim_token,status:'printed'},c);
+ assert.equal((await post('/api/print-jobs',{action:'claim-next',destinations:['customer']},c)).d.job,null);
+ const simultaneous=await Promise.all([post('/api/shift-close',{shift_id:opened.d.shift.id,closing_usd:107,closing_lbp:0},c),post('/api/shift-close',{shift_id:opened.d.shift.id,closing_usd:107,closing_lbp:0},c)]);assert.equal(simultaneous[0].d.print_job_id,simultaneous[1].d.print_job_id);const close=simultaneous[0];assert.equal(close.d.shift.expected_usd,107);assert.equal(close.d.shift.variance_usd,0);
+ const closingRetry=await post('/api/shift-close',{shift_id:opened.d.shift.id,closing_usd:0,closing_lbp:0},c);assert.equal(closingRetry.d.print_job_id,close.d.print_job_id);assert.equal(closingRetry.d.shift.closing_usd,107);
+ assert.equal(close.d.whatsapp.status,'not_configured');
+ const reportResponse=await fetch(base+'/api/shift-report?shift_id='+opened.d.shift.id,{headers:{cookie:c}});assert.equal(reportResponse.status,200);const report=(await reportResponse.json()).report;assert.equal(report.receipts[0].order_id,id);
+ const file=await fetch(base+'/api/shift-report?shift_id='+opened.d.shift.id+'&format=xlsx',{headers:{cookie:c}});assert.equal(file.status,200);assert.ok((await file.arrayBuffer()).byteLength>100);
+ assert.equal((await fetch(base+'/api/shift-report?shift_id='+opened.d.shift.id,{headers:{cookie:w1}})).status,401);
+ const closingPrint=await post('/api/print-jobs',{action:'claim-next',destinations:['customer']},c);assert.equal(closingPrint.d.job.id,close.d.print_job_id);assert.equal(closingPrint.d.job.open_drawer,false);assert.match(closingPrint.d.receipt.footer,/SHIFT CLOSING REPORT/);
+ await post('/api/print-jobs',{action:'status',job_id:closingPrint.d.job.id,claim_token:closingPrint.d.job.claim_token,status:'printed'},c);
+ assert.equal((await post('/api/print-jobs',{action:'claim-next',destinations:['customer']},c)).d.job,null);
+ const nextShift=await post('/api/actions',{action:'open_shift',opening_usd:0,opening_lbp:0},c);
+ const together=await Promise.all([post('/api/orders',{...b,request_id:'parallel-w1',table_id:'table-2'},w1),post('/api/orders',{...b,request_id:'parallel-w2',table_id:'table-3'},w2)]);assert.notEqual(together[0].d.order.id,together[1].d.order.id);
+ const afterParallel=await(await fetch(base+'/api/bootstrap',{headers:{cookie:c}})).json();for(const result of together)assert.ok(afterParallel.orders.some(o=>o.id===result.d.order.id));
+ const loginReport=await fetch(base+'/shift-report?shift_id='+opened.d.shift.id);assert.equal(loginReport.status,200);assert.match(await loginReport.text(),/Sign in to Cocktaillo/);
+ const signedReport=await fetch(base+'/shift-report?shift_id='+opened.d.shift.id,{headers:{cookie:c}});assert.equal(signedReport.status,200);assert.match(await signedReport.text(),/without ice/);
  // Optional local UI smoke using an installed Playwright package.
  if(process.env.PLAYWRIGHT_MODULE){
   const {chromium}=await import(process.env.PLAYWRIGHT_MODULE);const browser=await chromium.launch({headless:true});
-  try{const context=await browser.newContext({viewport:{width:390,height:844}});await context.addCookies([{name:'cocktaillo_session',value:w1.split('=')[1],domain:'127.0.0.1',path:'/'}]);await context.addInitScript(()=>localStorage.setItem('cocktaillo-language:waiter1','ar'));const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await post('/api/actions',{action:'open_shift',opening_usd:0,opening_lbp:0},c);await page.goto(base);await page.getByPlaceholder('فتّش عن صنف أو قسم…').fill('Test Oreo');await page.locator('.menuItem').click();await page.getByLabel('ملاحظة للصنف').fill('بلا تلج');const grid=page.locator('.waiterTableGrid');const dimensions=await grid.evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth}));assert.ok(dimensions.scrollWidth<=dimensions.clientWidth+1);const noteBox=await page.getByLabel('ملاحظة للصنف').boundingBox(),sendBox=await page.getByRole('button',{name:/إرسال الطلب/}).boundingBox();assert.ok(noteBox&&sendBox&&noteBox.y+noteBox.height<=sendBox.y);await page.locator('.waiterTableGrid .tableBtn').filter({hasText:/^2$/}).first().click();assert.equal(await page.getByLabel('ملاحظة للصنف').count(),0);await page.locator('.waiterTableGrid .tableBtn').filter({hasText:/^1$/}).first().click();assert.equal(await page.getByLabel('ملاحظة للصنف').inputValue(),'بلا تلج');assert.equal(await page.locator('.totals').count(),0);await page.getByRole('button',{name:/إرسال الطلب/}).click();await page.getByRole('status').filter({hasText:'تم إرسال الطلب'}).waitFor();assert.deepEqual(errors,[]);console.log('Mobile waiter UI passed: table grid, note spacing, bilingual Arabic mode and successful send.');}finally{await browser.close()}
+  try{const context=await browser.newContext({viewport:{width:390,height:844}});await context.addCookies([{name:'cocktaillo_session',value:w1.split('=')[1],domain:'127.0.0.1',path:'/'}]);await context.addInitScript(()=>localStorage.setItem('cocktaillo-language:waiter1','ar'));const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.getByPlaceholder('فتّش عن صنف أو قسم…').fill('Test Oreo');await page.locator('.menuItem').click();await page.getByLabel('ملاحظة للصنف').fill('بلا تلج');const grid=page.locator('.waiterTableGrid');const dimensions=await grid.evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth}));assert.ok(dimensions.scrollWidth<=dimensions.clientWidth+1);const noteBox=await page.getByLabel('ملاحظة للصنف').boundingBox(),sendBox=await page.getByRole('button',{name:/إرسال الطلب/}).boundingBox();assert.ok(noteBox&&sendBox&&noteBox.y+noteBox.height<=sendBox.y);await page.locator('.waiterTableGrid .tableBtn').filter({hasText:/^2$/}).first().click();assert.equal(await page.getByLabel('ملاحظة للصنف').count(),0);await page.locator('.waiterTableGrid .tableBtn').filter({hasText:/^1$/}).first().click();assert.equal(await page.getByLabel('ملاحظة للصنف').inputValue(),'بلا تلج');assert.equal(await page.locator('.totals').count(),0);await page.getByRole('button',{name:/إرسال الطلب/}).click();await page.getByRole('status').filter({hasText:'تم إرسال الطلب'}).waitFor();assert.deepEqual(errors,[]);console.log('Mobile waiter UI passed: table grid, note spacing, bilingual Arabic mode and successful send.');}finally{await browser.close()}
  }
  console.log('HTTP smoke passed: waiter ownership, retry deduplication, printer claim, duplicate payment and shift close.');
 }catch(e){console.error(logs);throw e}finally{if(server.exitCode===null){server.kill();await new Promise(r=>server.once('exit',r))};await rm(dir,{recursive:true,force:true})}
+
