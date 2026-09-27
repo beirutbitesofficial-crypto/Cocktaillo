@@ -1085,3 +1085,13 @@
     to { transform: scaleY(1); }
   }
 }
+
+@media screen {
+  .whatsappBtn {
+    background: linear-gradient(180deg, #25d366, #128c4a);
+    box-shadow: 0 6px 16px rgba(18, 140, 74, 0.28);
+  }
+  .whatsappBtn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #2ee27a, #149a52);
+  }
+}

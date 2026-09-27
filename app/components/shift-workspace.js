@@ -1,10 +1,13 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {Input,PageHeader,Stat,fmt,post,usd} from './ui.js';
+import {shiftWhatsAppUrl} from '../../lib/shift-whatsapp.js';
 export default function ShiftWorkspace({data,reload,language='en'}){
   const [usdValue,setUsdValue]=useState(''),[lbpValue,setLbpValue]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const lock=useRef(false),deliveryLock=useRef(false),ar=language==='ar',t=(en,arabic)=>ar?arabic:en;
-  const open=(data.shifts||[]).find(s=>s.user_id===data.user.id&&s.status==='open');
+  const open=(data.shifts||[]).find(s=>s.user_id===data.user.id&&s.status==='open'),isManager=data.user.role==='manager';
+  // Manager only: open WhatsApp with the saved shift summary addressed to the manager's number.
+  async function sendWhatsApp(shift){const win=window.open('','_blank');try{let report=null;if(shift.report_id){const r=await fetch(`/api/shift-report?shift_id=${encodeURIComponent(shift.id)}`,{cache:'no-store'});if(r.ok)report=(await r.json()).report}const url=shiftWhatsAppUrl(shift,report,{number:data.settings?.manager_whatsapp,ar,origin:window.location.origin});if(win)win.location.href=url;else window.location.href=url}catch(e){win?.close();setMessage(e.message||t('Could not prepare the WhatsApp report.','ما قدرنا نحضّر تقرير الواتساب.'))}}
   const summary=open&&data.cashier_shift_summary?.shift_id===open.id?data.cashier_shift_summary:null;
   const deliveries=data.report_deliveries||[],reports=(data.shifts||[]).filter(s=>s.status==='closed').slice().reverse();
   const statusText=status=>({pending:t('Waiting to send','بانتظار الإرسال'),sending:t('Sending','جارٍ الإرسال'),not_configured:t('WhatsApp setup required','واتساب بحاجة للربط'),accepted:t('Accepted by WhatsApp; delivery not confirmed','واتساب قبل الرسالة؛ الوصول بعده مش مؤكّد'),sent:t('Sent; delivery not confirmed','انبعث؛ الوصول بعده مش مؤكّد'),delivered:t('Delivered','وصل'),read:t('Read','انقرت'),failed:t('Failed — manager can retry','فشل الإرسال — المدير فيه يعيد المحاولة'),uncertain:t('Unconfirmed — check WhatsApp before resending','غير مؤكّد — تأكّد من واتساب قبل إعادة الإرسال')}[status]||status);
@@ -28,10 +31,10 @@ export default function ShiftWorkspace({data,reload,language='en'}){
       <p>{t('Expected','المتوقّع')}: {usd(Math.round(Number(s.expected_usd||0)*100))} / {fmt(s.expected_lbp||0)} LBP</p>
       <p>{t('Counted','المعدود')}: {usd(Math.round(Number(s.closing_usd||0)*100))} / {fmt(s.closing_lbp||0)} LBP</p>
       <p>{t('Variance','الفرق')}: {usd(Math.round(Number(s.variance_usd||0)*100))} / {fmt(s.variance_lbp||0)} LBP</p>
-      {delivery&&<p>WhatsApp: {statusText(delivery.status)}</p>}
+      {delivery&&delivery.status!=='not_configured'&&<p>WhatsApp: {statusText(delivery.status)}</p>}
       {job&&<p>{t('Printer','الطابعة')}: {job.status==='printed'?t('Printed','انطبعت'):job.status==='failed'?t('Printing failed — check cashier printer','فشلت الطباعة — افحص طابعة الكاشير'):t('Queued / printing','بانتظار الطباعة / جارٍ الطباعة')}</p>}
-      {s.report_id&&<a className="btn btnSoft" href={`/shift-report?shift_id=${encodeURIComponent(s.id)}`}>{t('View detailed report','عرض التقرير المفصّل')}</a>}
-      {data.user.role==='manager'&&delivery&&['not_configured','failed'].includes(delivery.status)&&<button className="btn btnSoft" style={{marginInlineStart:8,marginTop:8}} disabled={busy} onClick={()=>retry(s.id)}>{t('Retry WhatsApp','إعادة إرسال واتساب')}</button>}
+      {s.report_id&&<a className="btn btnSoft" href={`/shift-report?shift_id=${encodeURIComponent(s.id)}`}>{t('View detailed report','عرض التقرير المفصّل')}</a>}{isManager&&<button type="button" className="btn btnPrimary whatsappBtn" style={{marginInlineStart:8}} onClick={()=>sendWhatsApp(s)}>{t('Send on WhatsApp','إرسال على واتساب')}</button>}
+      {data.user.role==='manager'&&delivery&&delivery.status==='failed'&&<button className="btn btnSoft" style={{marginInlineStart:8,marginTop:8}} disabled={busy} onClick={()=>retry(s.id)}>{t('Retry WhatsApp','إعادة إرسال واتساب')}</button>}
     </div>})}</div>
   </>
 }
