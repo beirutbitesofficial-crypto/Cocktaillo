@@ -37,6 +37,10 @@
     --shadow: 0 2px 6px rgba(21, 38, 29, 0.05), 0 16px 40px rgba(21, 38, 29, 0.08);
     --ring: 0 0 0 3px rgba(43, 122, 84, 0.22);
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-fast: 90ms;
+    --dur: 130ms;
+    --dur-in: 180ms;
     color-scheme: light;
   }
 
@@ -120,7 +124,7 @@
   }
   button {
     -webkit-tap-highlight-color: transparent;
-    transition: background-color 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease), box-shadow 0.18s var(--ease), transform 0.12s var(--ease);
+    transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
   }
   button:disabled {
     cursor: not-allowed;
@@ -175,7 +179,7 @@
     border-radius: 28px;
     box-shadow: var(--shadow);
     padding: 38px 34px 32px;
-    animation: cocktailloRise 0.45s var(--ease) both;
+    animation: cocktailloRise 260ms var(--ease) both;
   }
   .loginCard label {
     font-size: 13px;
@@ -196,7 +200,7 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 12px 14px;
-    transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease), background-color 0.18s var(--ease);
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease);
   }
   .input::placeholder {
     color: var(--muted);
@@ -379,7 +383,7 @@
     padding: 22px 24px 28px;
   }
   .main > * {
-    animation: cocktailloFade 0.28s var(--ease) both;
+    animation: cocktailloFade var(--dur-in) var(--ease) both;
   }
   .pageTitle {
     margin-bottom: 18px;
@@ -415,7 +419,7 @@
   .stat {
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   }
   .stat::after {
     content: '';
@@ -616,7 +620,7 @@
     height: 3px;
     background: linear-gradient(90deg, var(--accent), transparent);
     opacity: 0;
-    transition: opacity 0.2s var(--ease);
+    transition: opacity var(--dur) var(--ease);
   }
   .menuItem:hover:not(:disabled),
   :root[data-theme='dark'] .menuItem:hover:not(:disabled) {
@@ -668,7 +672,7 @@
   :root[data-theme='dark'] .orderLine {
     border-bottom: 1px dashed var(--line);
     padding: 11px 0;
-    animation: cocktailloFade 0.22s var(--ease) both;
+    animation: cocktailloFade var(--dur-in) var(--ease) both;
   }
   .orderLine strong {
     font-weight: 700;
@@ -766,7 +770,7 @@
     border-radius: 14px;
     padding: 13px 14px;
     box-shadow: var(--shadow-xs);
-    transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   }
   .listRow:hover {
     border-color: var(--line-strong);
@@ -808,7 +812,7 @@
   [role='dialog'][aria-modal='true'] {
     background: rgba(8, 18, 12, 0.55) !important;
     backdrop-filter: blur(4px);
-    animation: cocktailloFade 0.18s ease both;
+    animation: cocktailloFade var(--dur) ease both;
   }
   .modal,
   :root[data-theme='dark'] .modal,
@@ -818,7 +822,7 @@
     border: 1px solid var(--line);
     border-radius: 24px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35) !important;
-    animation: cocktailloRise 0.26s var(--ease) both;
+    animation: cocktailloRise var(--dur-in) var(--ease) both;
   }
   .addonBtn,
   :root[data-theme='dark'] .addonBtn {
@@ -926,5 +930,168 @@
       animation: none !important;
       transition: none !important;
     }
+  }
+}
+
+/*
+  Motion layer: short, snappy entrances for text and controls.
+  Entrance animations use `backwards` fill so hover/press transforms still work
+  afterwards, and only content elements move (never containers of fixed popups).
+*/
+@media screen {
+  /* Remove the mobile double-tap zoom delay so taps register instantly. */
+  button,
+  a,
+  input,
+  select,
+  label,
+  .menuItem,
+  .tableBtn {
+    touch-action: manipulation;
+  }
+
+  /* Page switch: title and subtitle glide in, then content. */
+  .main > * {
+    animation: cocktailloFade var(--dur-in) var(--ease-out) both;
+  }
+  .pageTitle h1 {
+    animation: cocktailloUp var(--dur-in) var(--ease-out) backwards;
+  }
+  .pageTitle p {
+    animation: cocktailloUp var(--dur-in) var(--ease-out) 40ms backwards;
+  }
+  .card > h2,
+  .card > h3,
+  .orderHead h2 {
+    animation: cocktailloUp var(--dur-in) var(--ease-out) 30ms backwards;
+  }
+
+  /* Staggered cards, stats, menu items and tables. */
+  .cards > *,
+  .menuGrid > .menuItem,
+  .tableGrid > .tableBtn,
+  .list > *,
+  .stationGrid > *,
+  .inventoryGrid > * {
+    animation: cocktailloPop var(--dur-in) var(--ease-out) backwards;
+  }
+  .cards > :nth-child(2), .menuGrid > :nth-child(2), .tableGrid > :nth-child(2), .list > :nth-child(2) { animation-delay: 15ms; }
+  .cards > :nth-child(3), .menuGrid > :nth-child(3), .tableGrid > :nth-child(3), .list > :nth-child(3) { animation-delay: 30ms; }
+  .cards > :nth-child(4), .menuGrid > :nth-child(4), .tableGrid > :nth-child(4), .list > :nth-child(4) { animation-delay: 45ms; }
+  .cards > :nth-child(5), .menuGrid > :nth-child(5), .tableGrid > :nth-child(5), .list > :nth-child(5) { animation-delay: 60ms; }
+  .cards > :nth-child(6), .menuGrid > :nth-child(6), .tableGrid > :nth-child(6), .list > :nth-child(6) { animation-delay: 75ms; }
+  .cards > :nth-child(7), .menuGrid > :nth-child(7), .tableGrid > :nth-child(7), .list > :nth-child(7) { animation-delay: 90ms; }
+  .cards > :nth-child(n + 8), .menuGrid > :nth-child(n + 8), .tableGrid > :nth-child(n + 8), .list > :nth-child(n + 8) { animation-delay: 105ms; }
+
+  /* New cart lines slide in from the reading side. */
+  .orderLine {
+    animation: cocktailloSlide var(--dur-in) var(--ease-out) backwards;
+  }
+  [dir='rtl'] .orderLine {
+    animation-name: cocktailloSlideRtl;
+  }
+
+  /* Messages and status text fade in. */
+  .error,
+  [role='status'],
+  .paymentGrid .changeCard strong {
+    animation: cocktailloUp var(--dur-in) var(--ease-out) backwards;
+  }
+
+  /* Buttons: quick lift on hover, crisp press, light sweep on primary. */
+  .btn:hover:not(:disabled),
+  .categoryBtn:hover,
+  .modeTabs button:hover,
+  .topActions button:hover {
+    transform: translateY(-1px);
+  }
+  .btn:active:not(:disabled),
+  .categoryBtn:active,
+  .modeTabs button:active,
+  .topActions button:active,
+  .navItem:active,
+  .mobileNav button:active,
+  .qty button:active:not(:disabled) {
+    transform: scale(0.96);
+    transition-duration: 60ms;
+  }
+  .btnPrimary {
+    position: relative;
+    overflow: hidden;
+  }
+  .btnPrimary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+    transform: translateX(-120%);
+    pointer-events: none;
+  }
+  .btnPrimary:hover:not(:disabled)::after {
+    transform: translateX(120%);
+    transition: transform 420ms var(--ease-out);
+  }
+  .categoryBtn.active,
+  .modeTabs button.active,
+  .tableBtn.active {
+    animation: cocktailloPress var(--dur-in) var(--ease-out);
+  }
+  .navItem span {
+    transition: transform var(--dur) var(--ease-out), background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .navItem:hover span {
+    transform: translateX(2px);
+  }
+  [dir='rtl'] .navItem:hover span {
+    transform: translateX(-2px);
+  }
+  .navItem.active::before {
+    animation: cocktailloGrow var(--dur-in) var(--ease-out);
+  }
+  .mobileNav button span {
+    transition: transform var(--dur) var(--ease-out);
+  }
+  .mobileNav button.active span {
+    transform: translateY(-2px) scale(1.08);
+  }
+  .input,
+  select {
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease);
+  }
+
+  @keyframes cocktailloUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes cocktailloPop {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes cocktailloSlide {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes cocktailloSlideRtl {
+    from { opacity: 0; transform: translateX(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes cocktailloPress {
+    0% { transform: scale(0.95); }
+    60% { transform: scale(1.03); }
+    100% { transform: none; }
+  }
+  @keyframes cocktailloGrow {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+}
+
+@media screen {
+  .whatsappBtn {
+    background: linear-gradient(180deg, #25d366, #128c4a);
+    box-shadow: 0 6px 16px rgba(18, 140, 74, 0.28);
+  }
+  .whatsappBtn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #2ee27a, #149a52);
   }
 }
