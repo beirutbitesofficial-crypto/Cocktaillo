@@ -39,3 +39,16 @@ test('existing website items are upgraded instead of duplicated, deleted ones st
   assert.deepEqual(ensureFoodMenu(state), { added: 0, upgraded: 0 });
   assert.equal(state.menu.length, count);
 });
+
+test('food sections come first, keeping each group in its original order', async () => {
+  const { foodFirst } = await import('../lib/food-seed.js');
+  const items = [
+    { id: 'wings', category: 'Food', subcategory: 'Appetizers' },
+    { id: 'crepe', category: 'Dessert', subcategory: 'Crepe' },
+    { id: 'fahita', category: 'Food', subcategory: 'Sandwiches' },
+    { id: 'orange', category: 'Cold Beverage', subcategory: 'Fresh Juices' },
+    { id: 'caesar', category: 'Salads', subcategory: 'Signature Salad' },
+    { id: 'zinger', category: 'Food', subcategory: 'Chicken Burgers' },
+  ];
+  assert.deepEqual(foodFirst(items).map(i => i.id), ['fahita', 'zinger', 'wings', 'caesar', 'crepe', 'orange']);
+});
