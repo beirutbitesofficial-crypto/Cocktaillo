@@ -1,0 +1,1 @@
+QZ print integration QA trigger
