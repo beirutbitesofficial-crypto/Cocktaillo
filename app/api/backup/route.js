@@ -17,9 +17,13 @@ export async function POST(request){
  if(!user||!allow(user,'manager'))return NextResponse.json({error:'Manager only.'},{status:403});
  try{
   const backup=await request.json();
-  if(backup?.format!=='cocktaillo-pos-backup'||backup?.backup_version!==1||!backup?.data)throw new Error('Invalid Cocktaillo backup file.');
+  // Manual backups and the server's daily automatic snapshots (cocktaillo-pos-auto-backup) can both be restored.
+  const manual=backup?.format==='cocktaillo-pos-backup'&&backup?.backup_version===1,auto=backup?.format==='cocktaillo-pos-auto-backup';
+  if((!manual&&!auto)||!backup?.data||typeof backup.data!=='object')throw new Error('Invalid Cocktaillo backup file. Choose the cocktaillo-backup-….json file from Download Full Backup.');
   const restored=backup.data;
-  for(const key of REQUIRED)if(restored[key]===undefined)throw new Error(`Backup is incomplete: missing ${key}.`);
+  for(const key of ['users','settings','menu'])if(restored[key]===undefined)throw new Error(`Backup is incomplete: missing ${key}.`);
+  // Older backups can predate some sections; start those empty instead of rejecting the file.
+  for(const key of REQUIRED)if(restored[key]===undefined)restored[key]=key==='settings'?{}:[];
   if(!Array.isArray(restored.users)||!restored.users.some(u=>u.role==='manager'&&u.active!==false))throw new Error('Backup must contain an active Manager account.');
   await mutateState(async state=>{
    for(const key of Object.keys(state))delete state[key];
