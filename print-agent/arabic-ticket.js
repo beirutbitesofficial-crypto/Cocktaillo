@@ -33,10 +33,10 @@ function textBlock(text,{size=26,bold=false,align='right',rtl=true,inverse=false
 function ruleBlock(){return {type:'rule',top:7,bottom:7}}
 
 function buildArabicTicketDocument(ticket={}){
-  const kind=cleanText(ticket.kind||'NEW').toUpperCase(),isVoid=kind==='VOID',isHookah=cleanText(ticket.station).toLowerCase()==='hookah',stamp=dateParts(ticket.created_at);
+  const kind=cleanText(ticket.kind||'NEW').toUpperCase(),isVoid=kind==='VOID',isHookah=cleanText(ticket.station).toLowerCase()==='hookah',isKitchen=cleanText(ticket.station).toLowerCase()==='kitchen',stamp=dateParts(ticket.created_at);
   const orderNumber=cleanText(ticket.order_number||'--'),staff=cleanText(ticket.staff_name||''),blocks=[];
-  blocks.push(textBlock(isVoid?(isHookah?'إلغاء طلب شيشة':'إلغاء طلب البار'):(isHookah?'طلب شيشة جديد':'طلب بار جديد'),{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
-  blocks.push(textBlock(isHookah?'كوكتايلو - الشيشة':'كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
+  blocks.push(textBlock(isVoid?(isHookah?'إلغاء طلب شيشة':isKitchen?'إلغاء طلب المطبخ':'إلغاء طلب البار'):(isHookah?'طلب شيشة جديد':isKitchen?'طلب مطبخ جديد':'طلب بار جديد'),{size:38,bold:true,align:'center',inverse:true,top:12,bottom:12}));
+  blocks.push(textBlock(isHookah?'كوكتايلو - الشيشة':isKitchen?'كوكتايلو - المطبخ':'كوكتايلو - البار',{size:28,bold:true,align:'center',top:10,bottom:3}));
   blocks.push(textBlock('طلب رقم '+orderNumber,{size:36,bold:true,align:'center',top:5,bottom:2}));
   blocks.push(textBlock(arabicTableLabel(ticket.table),{size:38,bold:true,align:'center',top:2,bottom:6}));
   blocks.push(textBlock(stamp.date+'   '+stamp.time,{size:23,bold:true,align:'center',rtl:false,top:3,bottom:4}));
