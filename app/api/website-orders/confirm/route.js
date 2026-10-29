@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {getUser,allow} from '../../../../lib/auth.js';
 import {mutateState,orderTotal} from '../../../../lib/store.js';
+import {printsStation,productionPrinterName} from '../../../../lib/production-print.js';
 
 const INSTAGRAM_URL='https://www.instagram.com/cocktaillorestocafe?igsi=MThhZmZ3MTVpMTF2bg==';
 
@@ -92,10 +93,10 @@ export async function POST(request){
           state.tickets.push(ticket);
         }
 
-        if(station==='bar'||station==='hookah'){
+        if(printsStation(state.settings,station)){
           const existingJob=state.print_jobs.find(job=>job.order_id===order.id&&job.ticket_id===ticket.id&&job.destination===station);
           if(!existingJob){
-            const printerName=station==='hookah'?state.settings.hookah_printer_name||'HOOKAH':state.settings.bar_printer_name||'Bar Printer';
+            const printerName=productionPrinterName(state.settings,station);
             state.print_jobs.push({id:`print-${crypto.randomUUID()}`,ticket_id:ticket.id,order_id:order.id,order_number:order.number,destination:station,mode:'automatic',status:'pending',printer_name:printerName,created_at:now,updated_at:now,attempts:0,last_error:null,printed_at:null,next_attempt_at:null,requested_by:user.name});
           }
         }

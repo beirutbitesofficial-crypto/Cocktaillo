@@ -1,6 +1,6 @@
 # Cocktaillo Windows Print Agent
 
-This local Windows agent prints 80mm customer receipts plus separate Bar and Hookah production tickets without QZ Tray or a browser print dialog.
+This local Windows agent prints 80mm customer receipts plus separate Bar, Hookah and Kitchen production tickets without QZ Tray or a browser print dialog.
 
 ## How it works
 
@@ -8,9 +8,9 @@ This local Windows agent prints 80mm customer receipts plus separate Bar and Hoo
 - A 256-bit pairing token protects every request.
 - Allowed browser origins are controlled by config.json.
 - RAW ESC/POS bytes go directly to the selected Windows printers.
-- Customer, Bar and Hookah printer names are configured independently in the POS browser.
+- Customer, Bar, Hookah and Kitchen printer names are configured independently in the POS browser.
 - Completed job IDs are stored locally, preventing duplicate printing after a retry or restart.
-- Kitchen printing is intentionally disabled in the POS for now.
+- Kitchen printing is off until the manager ticks "Print food orders on the Kitchen printer" in Settings, so tickets never queue for a printer that is not installed yet.
 
 A waiter can use the POS from a phone. Sending a table order creates a persistent Bar or Hookah print job on the server. The cashier computer polls that queue and forwards the ticket to the matching local production printer. The phone never connects to a printer.
 
@@ -48,10 +48,26 @@ The token and selections remain in browser localStorage on that computer. They a
 - Cashier payment: paid receipt -> local agent -> Customer printer.
 - A print failure never reverses a successful payment.
 - Failed jobs stay in the server queue and can be retried.
-- Kitchen tickets can still appear on the Kitchen board, but no Kitchen print job is created.
+- Waiter phone food order: Kitchen lines only -> cashier browser worker -> local agent -> Kitchen printer in Arabic (once kitchen printing is turned on).
+- Agent 2.7.0 titles kitchen tickets "طلب مطبخ جديد". Older agents still print them correctly on the Kitchen printer, with the Bar title.
 
 ## Security and troubleshooting
 
 Keep the token private. If the hosted POS domain changes, add its exact HTTPS origin to allowed_origins in config.json and restart the scheduled task.
 
 If printing does not start, verify the scheduled task is running, the three Windows printer names match the selections, and the Settings test can list all three printers. The agent URL is deliberately restricted to localhost so the pairing token cannot be sent to another machine.
+
+## Reconnect a printer that stopped printing
+
+1. Check the printer is on, has paper, and its USB or network cable is plugged into the cashier computer.
+2. In Windows Settings > Bluetooth & devices > Printers & scanners, open the printer and print a Windows test page. If Windows shows it as offline, unplug and replug it (or restart it) and wait until it is ready.
+3. If Windows reinstalled the printer under a new name (for example "Bar Printer (Copy 1)"), either rename it back or pick the new name in the POS.
+4. In the POS on the cashier computer: Settings > Cashier Computer Printers > Test Agent & Load Printers, choose the printer from the list, then Save on This Computer.
+5. Retry the failed tickets from the print status list. Tickets that failed while the printer was away stay queued and are never lost.
+
+## Add the Kitchen printer
+
+1. Install the Kitchen printer in Windows on the cashier computer and print a Windows test page. Give it a clear name such as Kitchen Printer.
+2. In the POS: Settings > Cashier Computer Printers > Test Agent & Load Printers, choose it as Kitchen printer (food), then Save on This Computer.
+3. Tick Print food orders on the Kitchen printer.
+4. Send one test food order from a waiter phone. Only food prints in the kitchen; drinks stay on the Bar printer and shisha on the HOOKAH printer.

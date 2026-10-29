@@ -71,3 +71,10 @@ test('Windows renderer emits chunked 576-dot ESC/POS raster data and a cut comma
   assert.ok(output.includes(Buffer.from([0x1d,0x56,0x00])),'missing cut command');
   assert.ok(output.length>20000,'Arabic ticket raster should contain visible content');
 });
+
+test('Kitchen tickets are titled for the kitchen, not the bar',()=>{
+  const text=textLines(buildArabicTicketDocument({...fixture,station:'kitchen',lines:[{name_ar:'فاهيتا',quantity:1,category_ar:'سندويشات'}]}));
+  for(const marker of ['طلب مطبخ جديد','كوكتايلو - المطبخ','1 × فاهيتا','سندويشات'])assert.ok(text.includes(marker),marker);
+  assert.ok(!text.includes('طلب بار جديد'));
+  assert.ok(textLines(buildArabicTicketDocument({...fixture,station:'kitchen',kind:'VOID'})).includes('إلغاء طلب المطبخ'));
+});

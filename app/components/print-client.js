@@ -5,6 +5,7 @@ const DEFAULT_AGENT_URL='http://127.0.0.1:17483';
 const DEFAULT_BAR_PRINTER='Bar Printer';
 const DEFAULT_HOOKAH_PRINTER='HOOKAH';
 const DEFAULT_CUSTOMER_PRINTER='Customer Receipt';
+const DEFAULT_KITCHEN_PRINTER='Kitchen Printer';
 let installed=false;
 let nativeFetch=null;
 let workerTimer=null;
@@ -16,13 +17,13 @@ function emit(detail){if(typeof window!=='undefined')window.dispatchEvent(new Cu
 function isWindowsDevice(){return typeof navigator!=='undefined'&&/Windows/i.test(navigator.userAgent||'')}
 function cleanUrl(value){return String(value||DEFAULT_AGENT_URL).trim().replace(/\/+$/,'')}
 function validateLoopbackUrl(value){const url=cleanUrl(value);let parsed;try{parsed=new URL(url)}catch{throw new Error('Enter a valid print agent URL.')}if(parsed.protocol!=='http:'||!['127.0.0.1','localhost','[::1]'].includes(parsed.hostname))throw new Error('For security, the print agent URL must use local HTTP on 127.0.0.1 or localhost.');return url}
-function defaultsFromServer(serverSettings={}){return {url:serverSettings.print_agent_url||DEFAULT_AGENT_URL,token:'',customerPrinter:serverSettings.customer_printer_name||DEFAULT_CUSTOMER_PRINTER,barPrinter:serverSettings.bar_printer_name||DEFAULT_BAR_PRINTER,hookahPrinter:serverSettings.hookah_printer_name||DEFAULT_HOOKAH_PRINTER}}
+function defaultsFromServer(serverSettings={}){return {url:serverSettings.print_agent_url||DEFAULT_AGENT_URL,token:'',customerPrinter:serverSettings.customer_printer_name||DEFAULT_CUSTOMER_PRINTER,barPrinter:serverSettings.bar_printer_name||DEFAULT_BAR_PRINTER,hookahPrinter:serverSettings.hookah_printer_name||DEFAULT_HOOKAH_PRINTER,kitchenPrinter:serverSettings.kitchen_printer_name||DEFAULT_KITCHEN_PRINTER}}
 export function getPrintAgentSettings(serverSettings={}){
   const defaults=defaultsFromServer(serverSettings);
   if(typeof window==='undefined')return defaults;
   try{const saved=JSON.parse(window.localStorage.getItem(PRINT_AGENT_STORAGE_KEY)||'{}');return {...defaults,...saved,url:cleanUrl(saved.url||defaults.url)}}catch{return defaults}
 }
-function checkedSettings(input){const settings={...defaultsFromServer(),...(input||{})};settings.url=validateLoopbackUrl(settings.url);settings.token=String(settings.token||'').trim();settings.customerPrinter=String(settings.customerPrinter||DEFAULT_CUSTOMER_PRINTER).trim();settings.barPrinter=String(settings.barPrinter||DEFAULT_BAR_PRINTER).trim();settings.hookahPrinter=String(settings.hookahPrinter||DEFAULT_HOOKAH_PRINTER).trim();if(!settings.token)throw new Error('Paste the pairing token from the Windows Print Agent.');if(!settings.customerPrinter||!settings.barPrinter||!settings.hookahPrinter)throw new Error('Choose the customer, bar and Shisha printers.');return settings}
+function checkedSettings(input){const settings={...defaultsFromServer(),...(input||{})};settings.url=validateLoopbackUrl(settings.url);settings.token=String(settings.token||'').trim();settings.customerPrinter=String(settings.customerPrinter||DEFAULT_CUSTOMER_PRINTER).trim();settings.barPrinter=String(settings.barPrinter||DEFAULT_BAR_PRINTER).trim();settings.hookahPrinter=String(settings.hookahPrinter||DEFAULT_HOOKAH_PRINTER).trim();settings.kitchenPrinter=String(settings.kitchenPrinter??DEFAULT_KITCHEN_PRINTER).trim();if(!settings.token)throw new Error('Paste the pairing token from the Windows Print Agent.');if(!settings.customerPrinter||!settings.barPrinter||!settings.hookahPrinter)throw new Error('Choose the customer, bar and Shisha printers.');return settings}
 export function savePrintAgentSettings(input){if(typeof window==='undefined')throw new Error('Printer setup is only available in the browser.');const settings=checkedSettings(input);window.localStorage.setItem(PRINT_AGENT_STORAGE_KEY,JSON.stringify(settings));lastPrinterCheckAt=0;lastDestinations=[];emit({status:'ready',message:'Local printer setup saved on this cashier computer.'});return settings}
 async function agentRequest(path,{method='GET',body=null,settings=null}={}){
   const config=checkedSettings(settings||getPrintAgentSettings());
@@ -36,21 +37,21 @@ export async function testPrintAgent(overrides=null){
   const settings=checkedSettings(overrides?{...getPrintAgentSettings(),...overrides}:getPrintAgentSettings());
   const [health,printerResult]=await Promise.all([agentRequest('/health',{settings}),agentRequest('/printers',{settings})]);
   const printers=Array.isArray(printerResult.printers)?printerResult.printers:[];
-  return {ok:true,version:health.version||'',printers,customer:printers.includes(settings.customerPrinter),bar:printers.includes(settings.barPrinter),hookah:printers.includes(settings.hookahPrinter),settings};
+  return {ok:true,version:health.version||'',printers,customer:printers.includes(settings.customerPrinter),bar:printers.includes(settings.barPrinter),hookah:printers.includes(settings.hookahPrinter),kitchen:Boolean(settings.kitchenPrinter)&&printers.includes(settings.kitchenPrinter),settings};
 }
 async function availableDestinations(force=false){
   if(!isWindowsDevice())return [];
   const now=Date.now();if(!force&&now-lastPrinterCheckAt<10000)return lastDestinations;
   lastPrinterCheckAt=now;
-  try{const result=await testPrintAgent();lastDestinations=[];if(result.bar)lastDestinations.push('bar');if(result.hookah)lastDestinations.push('hookah');if(result.customer)lastDestinations.push('customer');return lastDestinations}
+  try{const result=await testPrintAgent();lastDestinations=[];if(result.bar)lastDestinations.push('bar');if(result.hookah)lastDestinations.push('hookah');if(result.kitchen)lastDestinations.push('kitchen');if(result.customer)lastDestinations.push('customer');return lastDestinations}
   catch{lastDestinations=[];return []}
 }
 async function agentPrint(bundle){
   const settings=checkedSettings(getPrintAgentSettings());
   const destination=bundle.job?.destination;
-  if(!['bar','hookah','customer'].includes(destination))throw new Error('Unsupported print destination.');
-  const printerName=destination==='bar'?settings.barPrinter:destination==='hookah'?settings.hookahPrinter:settings.customerPrinter;
-  const agentDestination=destination==='hookah'?'bar':destination; // Agent 2.4 compatibility: Bar and Shisha share the Arabic raster renderer; printerName still targets HOOKAH.
+  if(!['bar','hookah','kitchen','customer'].includes(destination))throw new Error('Unsupported print destination.');
+  const printerName=destination==='bar'?settings.barPrinter:destination==='hookah'?settings.hookahPrinter:destination==='kitchen'?settings.kitchenPrinter:settings.customerPrinter;
+  const agentDestination=destination==='hookah'||destination==='kitchen'?'bar':destination; // Agent compatibility: Bar, Shisha and Kitchen share the Arabic ticket renderer; printerName still targets the right printer.
   return agentRequest('/print',{method:'POST',settings,body:{job_id:bundle.job.id,destination:agentDestination,printer_name:printerName,receipt:bundle.receipt||null,ticket:bundle.ticket||null,open_drawer:bundle.job?.open_drawer===true}});
 }
 
@@ -60,7 +61,7 @@ async function executeJob(bundle,{claimed=false}={}){
   if(!bundle.should_print)return bundle;
   const job=bundle.job,claim={job_id:job.id,claim_token:job.claim_token};
   const heartbeat=setInterval(()=>void serverPost({action:'heartbeat',...claim}).catch(()=>{}),10000);
-  try{await agentPrint(bundle);await serverPost({action:'status',...claim,status:'printed'});emit({status:'printed',jobId:job.id,message:`${job.destination==='hookah'?'Shisha':job.destination} #${job.order_number} printed.`});return bundle}
+  try{await agentPrint(bundle);await serverPost({action:'status',...claim,status:'printed'});emit({status:'printed',jobId:job.id,message:`${job.destination==='hookah'?'Shisha':job.destination==='kitchen'?'Kitchen':job.destination} #${job.order_number} printed.`});return bundle}
   catch(e){await serverPost({action:'status',...claim,status:'failed',error:e.message}).catch(()=>{});emit({status:'failed',jobId:job.id,message:'Print job queued for retry',error:e.message});throw e}
   finally{clearInterval(heartbeat)}
 }
