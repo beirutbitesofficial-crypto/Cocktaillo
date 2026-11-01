@@ -7,6 +7,7 @@ const ARABIC_UI={
   'Table Orders':'طلبات الطاولات',
   'Table Setup':'إعداد الطاولات',
   'My Shift':'دوامي',
+  'Discounts':'الخصومات',
   'Shifts':'الدوامات',
   'Receipts':'الإيصالات',
   'Customer Receipts':'إيصالات الزبائن',
