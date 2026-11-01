@@ -10,10 +10,13 @@ export default function MenuAdmin({data,reload}){
   const[selectedCategory,setSelectedCategory]=useState('all');
   const[selectedSubcategory,setSelectedSubcategory]=useState('all');
   const[newCategory,setNewCategory]=useState('');
+  const[newSubcategory,setNewSubcategory]=useState('');
+  const[taxonomyMessage,setTaxonomyMessage]=useState('');
   const[syncing,setSyncing]=useState(false);
   const[saving,setSaving]=useState(false);
   const editing=Boolean(item.id);
   const isManager=data.user?.role==='manager';
+  const isWaiter=data.user?.role==='waiter';
   const search=query.trim().toLowerCase();
   const rawMenu=[...(data.menu_all||data.menu||[])];
   const categoryOrder=new Map((data.categories||[]).map((name,index)=>[String(name),index]));
@@ -55,8 +58,13 @@ export default function MenuAdmin({data,reload}){
   function cancel(){setItem(empty)}
   async function addCategory(){
     const name=newCategory.trim();
-    if(!name)return alert('Enter a category name.');
-    try{await post('/api/admin',{action:'add_category',name});setNewCategory('');setItem({...item,category:name});await reload()}catch(e){alert(e.message)}
+    if(!name)return setTaxonomyMessage('✗ Enter a category name.');
+    try{const out=await post('/api/admin',{action:'add_category',name});setNewCategory('');setItem({...item,category:out.name||name});setTaxonomyMessage(`✓ Category "${out.name||name}" added.`);await reload()}catch(e){setTaxonomyMessage('✗ '+e.message)}
+  }
+  async function addSubcategory(){
+    const name=newSubcategory.trim();
+    if(!name)return setTaxonomyMessage('✗ Enter a subcategory name.');
+    try{const out=await post('/api/admin',{action:'add_subcategory',name});setNewSubcategory('');setItem({...item,subcategory:out.name||name});setTaxonomyMessage(`✓ Subcategory "${out.name||name}" added.`);await reload()}catch(e){setTaxonomyMessage('✗ '+e.message)}
   }
   async function saveItem(){
     if(saving)return;
@@ -84,7 +92,8 @@ export default function MenuAdmin({data,reload}){
   const filterButton={whiteSpace:'nowrap',borderRadius:999,flex:'0 0 auto'};
   return <>
     <PageHeader title="Menu Management" sub="Website-matched category, subcategory and item order for fast POS ↔ website checking."/>
-    {isManager&&<div className="card" style={{marginBottom:12}}><strong>Add Category</strong><small style={{display:'block',color:'var(--muted)',marginTop:4,marginBottom:10}}>Create a new category and use it immediately for menu items.</small><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Category name" value={newCategory} onChange={setNewCategory}/></div><button className="btn btnPrimary" onClick={addCategory}>Add Category</button></div></div>}
+    <div className="card" style={{marginBottom:12}}><strong>Add Category / Subcategory</strong><small style={{display:'block',color:'var(--muted)',marginTop:4,marginBottom:10}}>Create a new category or subcategory and use it immediately for menu items.</small><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Category name" value={newCategory} onChange={setNewCategory}/></div><button className="btn btnPrimary" onClick={addCategory}>Add Category</button></div><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end',marginTop:10}}><div style={{minWidth:220,flex:'1 1 260px'}}><Input label="Subcategory name" value={newSubcategory} onChange={setNewSubcategory}/></div><button className="btn btnPrimary" onClick={addSubcategory}>Add Subcategory</button></div>{taxonomyMessage&&<p role="status" style={{marginTop:10,fontWeight:700,color:taxonomyMessage.startsWith('✗')?'var(--danger, #c0392b)':'var(--text)'}}>{taxonomyMessage}</p>}{isWaiter&&<><small style={{display:'block',color:'var(--muted)',marginTop:12}}>Categories</small><div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:6}}>{(data.categories||[]).map(c=><span key={c} style={{padding:'6px 12px',borderRadius:999,border:'1px solid var(--line, #ddd)',fontSize:13,fontWeight:600}}>{displayCategory(c)}</span>)}</div><small style={{display:'block',color:'var(--muted)',marginTop:10}}>Subcategories</small><div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:6}}>{(data.subcategories||[]).map(c=><span key={c} style={{padding:'6px 12px',borderRadius:999,border:'1px solid var(--line, #ddd)',fontSize:13,fontWeight:600}}>{displayCategory(c)}</span>)}</div></>}</div>
+    {isWaiter?null:<>
     {isManager&&<div className="card" style={{marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><strong>Website menu sync</strong><small style={{display:'block',color:'var(--muted)',marginTop:4}}>Import the same Cocktaillo website menu items and prices without deleting POS history. Items you delete in the POS stay deleted on future syncs.</small></div><button className="btn btnSoft" disabled={syncing} onClick={syncWebsite}>{syncing?'Syncing…':'Sync from website'}</button></div>}
     <div className="card formGrid">
       <Input label="English name" value={item.name_en} onChange={v=>setItem({...item,name_en:v})}/>
@@ -119,5 +128,6 @@ export default function MenuAdmin({data,reload}){
     </div>
     <div className="menuGrid section">{menuItems.map((i,index)=><div className="menuItem" key={i.id} style={{position:'relative',opacity:i.available===false?.65:1}}>{i.best_seller&&<span className="pill" style={{position:'absolute',top:8,right:8}}>★ BEST SELLER</span>}<small style={{fontWeight:700,color:'var(--muted)'}}>#{index+1}</small><strong>{i.name_en}</strong><small>{i.name_ar}</small><small>{displayCategory(i.category)} › {i.subcategory}</small><small>{i.available===false?'Unavailable':'Available'} · {i.station==='service'?'Service':i.station==='hookah'?'Shisha':i.station==='kitchen'?'Kitchen':'Bar'}</small><small>{Number(i.units_sold||0)} sold in paid orders</small><b>{usd(i.price_cents)}</b><button className="btn btnSoft" style={{width:'100%',marginTop:8}} onClick={()=>edit(i)}>Edit item</button>{isManager&&<button className="btn btnDanger" style={{width:'100%',marginTop:6}} onClick={()=>deleteItem(i)}>Delete item</button>}</div>)}</div>
     {!menuItems.length&&<div className="card" style={{marginTop:12,textAlign:'center',color:'var(--muted)'}}>No menu items match the selected website section{query?` and “${query}”`:''}.</div>}
+  </>}
   </>;
 }
